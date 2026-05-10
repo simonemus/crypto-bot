@@ -5,6 +5,7 @@
 # ============================================================
 
 import logging
+logging.getLogger("httpx").setLevel(logging.WARNING)
 import config
 from telegram_bot import start_telegram_bot
 
