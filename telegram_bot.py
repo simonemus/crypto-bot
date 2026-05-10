@@ -157,11 +157,14 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     wins   = [t for t in trades if t.get("result") == "tp"]
     losses = [t for t in trades if t.get("result") == "sl"]
     force  = [t for t in trades if t.get("result") == "force_close"]
+    total  = len(trades)
+    winrate = round(len(wins) / total * 100, 1) if total else 0
 
     lines = [
         f"📊 *Report giornaliero*",
-        f"Trade totali: {len(trades)}",
+        f"Trade totali: {total}",
         f"✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚠️ Force: {len(force)}",
+        f"Win rate: {winrate}%",
     ]
     for t in trades:
         emoji = {"tp": "✅", "sl": "🔴", "force_close": "⚠️"}.get(t.get("result", ""), "•")
