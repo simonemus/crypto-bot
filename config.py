@@ -4,6 +4,8 @@
 #  Cambia TESTNET = False per passare a live trading.
 # ============================================================
 
+import os
+
 # ── ENVIRONMENT ──────────────────────────────────────────────
 TESTNET = True   # True = Binance Testnet  |  False = Live
 
@@ -17,7 +19,7 @@ BINANCE_LIVE_API_KEY    = "YOUR_LIVE_API_KEY"
 BINANCE_LIVE_API_SECRET = "YOUR_LIVE_API_SECRET"
 
 # ── TELEGRAM ──────────────────────────────────────────────────
-TELEGRAM_BOT_TOKEN = "8789007797:AAFlmpweFstUqmq_66ZYtR60wo0PubdLbB0"
+TELEGRAM_BOT_TOKEN = ""
 TELEGRAM_CHAT_ID   = "973221453"   # es. "123456789"
 
 # ── SUPABASE ──────────────────────────────────────────────────
