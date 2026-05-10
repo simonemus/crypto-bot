@@ -142,7 +142,7 @@ def set_config_param(key, value):
     except Exception as e:
         logger.error(f"DB set_config_param error: {e}")
 
-        def get_all_trades():
+def get_all_trades():
     try:
         conn = get_db()
         cur = conn.cursor()
