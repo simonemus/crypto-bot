@@ -1,4 +1,4 @@
-ccxt==4.2.0
+ccxt==4.2.1
 python-telegram-bot==20.7
 supabase==1.2.0
 pandas==2.1.0
