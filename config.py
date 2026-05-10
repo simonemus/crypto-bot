@@ -19,8 +19,8 @@ BINANCE_LIVE_API_KEY    = "YOUR_LIVE_API_KEY"
 BINANCE_LIVE_API_SECRET = "YOUR_LIVE_API_SECRET"
 
 # ── TELEGRAM ──────────────────────────────────────────────────
-TELEGRAM_BOT_TOKEN = ""
-TELEGRAM_CHAT_ID   = "973221453"   # es. "123456789"
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID", "973221453") # es. "123456789"
 
 # ── SUPABASE ──────────────────────────────────────────────────
 SUPABASE_URL = "https://rfcwqxmpdjlfbsdsjxgs.supabase.co/rest/v1/"
