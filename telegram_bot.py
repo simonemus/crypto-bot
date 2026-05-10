@@ -176,17 +176,25 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
 
 def _format_report(trades, titolo):
-    wins  = [t for t in trades if t.get("result") == "tp"]
+    wins   = [t for t in trades if t.get("result") == "tp"]
     losses = [t for t in trades if t.get("result") == "sl"]
     force  = [t for t in trades if t.get("result") == "force_close"]
     total  = len(trades)
     winrate = round(len(wins) / total * 100, 1) if total else 0
+
+    pnl_wins   = sum(t.get("pnl_pct", 0) for t in wins)
+    pnl_losses = sum(t.get("pnl_pct", 0) for t in losses)
+    pnl_force  = sum(t.get("pnl_pct", 0) for t in force)
+    pnl_total  = round(pnl_wins + pnl_losses + pnl_force, 2)
+
+    sign = "+" if pnl_total >= 0 else ""
 
     lines = [
         f"📊 *{titolo}*",
         f"Trade totali: {total}",
         f"✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚠️ Force: {len(force)}",
         f"Win rate: {winrate}%",
+        f"PnL totale: `{sign}{pnl_total}%`",
     ]
     return "\n".join(lines)
 

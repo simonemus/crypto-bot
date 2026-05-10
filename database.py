@@ -42,13 +42,13 @@ def log_trade_open(symbol, direction, entry, sl, tp, qty, pattern):
     except Exception as e:
         logger.error(f"DB log_trade_open error: {e}")
 
-def log_trade_close(symbol, exit_price, result):
+def log_trade_close(symbol, exit_price, result, pnl_pct=0.0):
     try:
         conn = get_db()
         cur = conn.cursor()
         cur.execute(
-            "UPDATE trades SET exit_price=%s, result=%s, status=%s, closed_at=%s WHERE symbol=%s AND status=%s",
-            (exit_price, result, "closed", _now_iso(), symbol, "open")
+            "UPDATE trades SET exit_price=%s, result=%s, status=%s, closed_at=%s, pnl_pct=%s WHERE symbol=%s AND status=%s",
+            (exit_price, result, "closed", _now_iso(), pnl_pct, symbol, "open")
         )
         conn.commit()
         conn.close()
@@ -83,10 +83,10 @@ def get_today_trades():
     try:
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("SELECT symbol, direction, result FROM trades WHERE date=%s", (_today_str(),))
+        cur.execute("SELECT symbol, direction, result, date, pnl_pct FROM trades WHERE date=%s", (_today_str(),))
         rows = cur.fetchall()
         conn.close()
-        return [{"symbol": r[0], "direction": r[1], "result": r[2]} for r in rows]
+        return [{"symbol": r[0], "direction": r[1], "result": r[2], "date": str(r[3]), "pnl_pct": float(r[4] or 0)} for r in rows]
     except Exception as e:
         logger.error(f"DB get_today_trades error: {e}")
         return []
@@ -146,10 +146,10 @@ def get_all_trades():
     try:
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("SELECT symbol, direction, result, date FROM trades ORDER BY date DESC")
+        cur.execute("SELECT symbol, direction, result, date, pnl_pct FROM trades ORDER BY date DESC")
         rows = cur.fetchall()
         conn.close()
-        return [{"symbol": r[0], "direction": r[1], "result": r[2], "date": str(r[3])} for r in rows]
+        return [{"symbol": r[0], "direction": r[1], "result": r[2], "date": str(r[3]), "pnl_pct": float(r[4] or 0)} for r in rows]
     except Exception as e:
         logger.error(f"DB get_all_trades error: {e}")
         return []
@@ -159,10 +159,10 @@ def get_trades_from(days):
         since = (date.today() - timedelta(days=days)).isoformat()
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("SELECT symbol, direction, result, date FROM trades WHERE date>=%s ORDER BY date DESC", (since,))
+        cur.execute("SELECT symbol, direction, result, date, pnl_pct FROM trades WHERE date>=%s ORDER BY date DESC", (since,))
         rows = cur.fetchall()
         conn.close()
-        return [{"symbol": r[0], "direction": r[1], "result": r[2], "date": str(r[3])} for r in rows]
+        return [{"symbol": r[0], "direction": r[1], "result": r[2], "date": str(r[3]), "pnl_pct": float(r[4] or 0)} for r in rows]
     except Exception as e:
         logger.error(f"DB get_trades_from error: {e}")
         return []

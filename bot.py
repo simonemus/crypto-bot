@@ -222,7 +222,7 @@ def monitor_open_trades(exchange) -> None:
                 if direction == "short":
                     pnl_pct = -pnl_pct
 
-                log_trade_close(symbol, price, hit)
+                log_trade_close(symbol, price, hit, round(pnl_pct, 2))
                 to_remove.append(symbol)
 
                 if hit == "tp":
@@ -244,7 +244,6 @@ def monitor_open_trades(exchange) -> None:
 
 
 def force_close_all(exchange) -> None:
-    """Chiude tutti i trade aperti (chiamato alle 23:55)."""
     global open_trades
     if not open_trades:
         return
@@ -257,7 +256,19 @@ def force_close_all(exchange) -> None:
             cancel_all_orders(exchange, symbol)
             price = get_ticker_price(exchange, symbol)
             close_position_market(exchange, symbol, trade["direction"], trade["qty"])
-            log_trade_close(symbol, price, "force_close")
+
+            pnl_pct = (price - trade["entry"]) / trade["entry"] * 100
+            if trade["direction"] == "short":
+                pnl_pct = -pnl_pct
+            pnl_pct = round(pnl_pct, 2)
+
+            log_trade_close(symbol, price, "force_close", pnl_pct)
+
+            sign = "+" if pnl_pct >= 0 else ""
+            send_message(
+                f"⚠️ *Force Close* — {symbol}\n"
+                f"Exit: `{price:.4f}` | PnL: `{sign}{pnl_pct}%`"
+            )
         except Exception as e:
             logger.error(f"Errore force close {symbol}: {e}")
         finally:
