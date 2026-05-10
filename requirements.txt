@@ -1,5 +1,5 @@
 ccxt>=4.2.0
-python-telegram-bot>=20.7
+python-telegram-bot==20.7
 supabase>=2.3.0
 pandas>=2.1.0
 numpy>=1.26.0
