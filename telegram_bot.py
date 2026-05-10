@@ -172,6 +172,42 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
 
+    def _format_report(trades, titolo):
+    wins  = [t for t in trades if t.get("result") == "tp"]
+    losses = [t for t in trades if t.get("result") == "sl"]
+    force  = [t for t in trades if t.get("result") == "force_close"]
+    total  = len(trades)
+    winrate = round(len(wins) / total * 100, 1) if total else 0
+
+    lines = [
+        f"📊 *{titolo}*",
+        f"Trade totali: {total}",
+        f"✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚠️ Force: {len(force)}",
+        f"Win rate: {winrate}%",
+    ]
+    return "\n".join(lines)
+
+
+async def cmd_report_week(update, ctx):
+    from database import get_trades_from
+    trades = get_trades_from(7)
+    msg = _format_report(trades, "Report settimanale")
+    await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
+
+
+async def cmd_report_month(update, ctx):
+    from database import get_trades_from
+    trades = get_trades_from(30)
+    msg = _format_report(trades, "Report mensile")
+    await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
+
+
+async def cmd_report_all(update, ctx):
+    from database import get_all_trades
+    trades = get_all_trades()
+    msg = _format_report(trades, "Report totale")
+    await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
+
 
 async def cmd_equity(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/equity — Curva equity degli ultimi 30 giorni."""
@@ -257,6 +293,9 @@ def start_telegram_bot() -> None:
     app.add_handler(CommandHandler("equity",     cmd_equity))
     app.add_handler(CommandHandler("parametri",  cmd_parametri))
     app.add_handler(CommandHandler("set",        cmd_set))
+    app.add_handler(CommandHandler("reportweek",  cmd_report_week))
+    app.add_handler(CommandHandler("reportmonth", cmd_report_month))
+    app.add_handler(CommandHandler("reportall",   cmd_report_all))
 
     logger.info("Telegram bot in ascolto…")
     app.run_polling(drop_pending_updates=True)

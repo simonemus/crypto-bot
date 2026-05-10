@@ -141,3 +141,28 @@ def set_config_param(key, value):
         conn.close()
     except Exception as e:
         logger.error(f"DB set_config_param error: {e}")
+
+        def get_all_trades():
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT symbol, direction, result, date FROM trades ORDER BY date DESC")
+        rows = cur.fetchall()
+        conn.close()
+        return [{"symbol": r[0], "direction": r[1], "result": r[2], "date": str(r[3])} for r in rows]
+    except Exception as e:
+        logger.error(f"DB get_all_trades error: {e}")
+        return []
+
+def get_trades_from(days):
+    try:
+        since = (date.today() - timedelta(days=days)).isoformat()
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT symbol, direction, result, date FROM trades WHERE date>=%s ORDER BY date DESC", (since,))
+        rows = cur.fetchall()
+        conn.close()
+        return [{"symbol": r[0], "direction": r[1], "result": r[2], "date": str(r[3])} for r in rows]
+    except Exception as e:
+        logger.error(f"DB get_trades_from error: {e}")
+        return []
