@@ -335,6 +335,7 @@ def run_bot() -> None:
             # Sessione attiva
             if in_session():
                 rr = float(get_config_param("rr") or config.RISK_REWARD_RATIO)
+                logger.info(f"Scansione in corso — {now_utc().strftime('%H:%M:%S')} UTC")
                 for symbol in config.SYMBOLS:
                     scan_symbol(exchange, symbol, rr)
                 monitor_open_trades(exchange)
