@@ -10,6 +10,58 @@ DATABASE_URL = os.getenv("DATABASE_URL", "")
 def get_db():
     return psycopg2.connect(DATABASE_URL)
 
+def init_db():
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS signals (
+                id bigserial primary key,
+                symbol text not null,
+                direction text not null,
+                pdh numeric,
+                pdl numeric,
+                created_at timestamptz default now()
+            );
+            CREATE TABLE IF NOT EXISTS trades (
+                id bigserial primary key,
+                symbol text not null,
+                direction text not null,
+                entry numeric,
+                sl numeric,
+                tp numeric,
+                qty numeric,
+                pattern text,
+                status text default 'open',
+                result text,
+                exit_price numeric,
+                pnl_pct numeric,
+                date date,
+                opened_at timestamptz default now(),
+                closed_at timestamptz
+            );
+            CREATE TABLE IF NOT EXISTS config (
+                id bigserial primary key,
+                key text unique not null,
+                value text not null,
+                updated_at timestamptz default now()
+            );
+            CREATE TABLE IF NOT EXISTS equity (
+                id bigserial primary key,
+                date date unique,
+                balance numeric,
+                created_at timestamptz default now()
+            );
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('rr', '2.0', now())
+            ON CONFLICT (key) DO NOTHING;
+        """)
+        conn.commit()
+        conn.close()
+        logger.info("Database inizializzato correttamente")
+    except Exception as e:
+        logger.error(f"Errore inizializzazione DB: {e}")    
+
 def _now_iso():
     return datetime.now(timezone.utc).isoformat()
 

@@ -8,6 +8,8 @@ import logging
 logging.getLogger("httpx").setLevel(logging.WARNING)
 import config
 from telegram_bot import start_telegram_bot
+from database import init_db
+init_db()
 
 logging.basicConfig(
     level=config.LOG_LEVEL,
