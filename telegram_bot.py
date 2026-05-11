@@ -285,27 +285,22 @@ async def cmd_test(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 # ── AVVIO APPLICATION ─────────────────────────────────────────
 
 def start_telegram_bot() -> None:
-    """
-    Avvia il polling del bot Telegram in modo bloccante.
-    Chiama questa funzione dal main entry point.
-    """
     app = ApplicationBuilder().token(config.TELEGRAM_BOT_TOKEN).build()
 
-    app.add_handler(CommandHandler("start",      cmd_start))
-    app.add_handler(CommandHandler("stop",       cmd_stop))
-    app.add_handler(CommandHandler("status",     cmd_status))
-    app.add_handler(CommandHandler("trade",      cmd_trade))
-    app.add_handler(CommandHandler("report",     cmd_report))
-    app.add_handler(CommandHandler("equity",     cmd_equity))
-    app.add_handler(CommandHandler("parametri",  cmd_parametri))
-    app.add_handler(CommandHandler("set",        cmd_set))
+    app.add_handler(CommandHandler("start",       cmd_start))
+    app.add_handler(CommandHandler("stop",        cmd_stop))
+    app.add_handler(CommandHandler("status",      cmd_status))
+    app.add_handler(CommandHandler("trade",       cmd_trade))
+    app.add_handler(CommandHandler("report",      cmd_report))
+    app.add_handler(CommandHandler("equity",      cmd_equity))
+    app.add_handler(CommandHandler("parametri",   cmd_parametri))
+    app.add_handler(CommandHandler("set",         cmd_set))
     app.add_handler(CommandHandler("reportweek",  cmd_report_week))
     app.add_handler(CommandHandler("reportmonth", cmd_report_month))
     app.add_handler(CommandHandler("reportall",   cmd_report_all))
-    app.add_handler(CommandHandler("test", cmd_test))
+    app.add_handler(CommandHandler("test",        cmd_test))
 
-    logger.info("Telegram bot in ascolto…")
-async def process_queue(context):
+    async def process_queue(context):
         while not _message_queue.empty():
             text = _message_queue.get()
             try:
@@ -319,4 +314,5 @@ async def process_queue(context):
 
     app.job_queue.run_repeating(process_queue, interval=2, first=1)
 
+    logger.info("Telegram bot in ascolto…")
     app.run_polling(drop_pending_updates=True)
