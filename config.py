@@ -22,10 +22,6 @@ BINANCE_LIVE_API_SECRET = "YOUR_LIVE_API_SECRET"
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID", "973221453") # es. "123456789"
 
-# ── SUPABASE ──────────────────────────────────────────────────
-SUPABASE_URL = "https://rfcwqxmpdjlfbsdsjxgs.supabase.co/rest/v1/"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmY3dxeG1wZGpsZmJzZHNqeGdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MDU2ODYsImV4cCI6MjA5Mzk4MTY4Nn0.-YwvoSLyognfCU-HRSJ6jMPMlHU2feh2n5WzqvBXSE0"
-
 # ── ASSET LIST ────────────────────────────────────────────────
 SYMBOLS = ["BTC/USDT", "ETH/USDT"]
 
