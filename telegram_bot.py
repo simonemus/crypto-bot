@@ -36,30 +36,13 @@ def _get_app():
     return _get_app._instance
 
 
-def send_message(text: str) -> None:
-    import asyncio
-    import threading
-    try:
-        app = _get_app()
-        
-        async def _send():
-            await app.bot.send_message(
-                chat_id=config.TELEGRAM_CHAT_ID,
-                text=text,
-                parse_mode=ParseMode.MARKDOWN,
-            )
-        
-        loop = asyncio.new_event_loop()
-        t = threading.Thread(target=lambda: loop.run_until_complete(_send()))
-        t.start()
-        t.join()
-        loop.close()
-    except Exception as e:
-        logger.error(f"Errore invio messaggio Telegram: {e}")
+import queue
+_message_queue = queue.Queue()
 
+def send_message(text: str) -> None:
+    _message_queue.put(text)
 
 def send_error(text: str) -> None:
-    """Shortcut per notifiche di errore."""
     send_message(f"⚠️ *ERRORE*\n{text}")
 
 
@@ -322,4 +305,18 @@ def start_telegram_bot() -> None:
     app.add_handler(CommandHandler("test", cmd_test))
 
     logger.info("Telegram bot in ascolto…")
+async def process_queue(context):
+        while not _message_queue.empty():
+            text = _message_queue.get()
+            try:
+                await context.bot.send_message(
+                    chat_id=config.TELEGRAM_CHAT_ID,
+                    text=text,
+                    parse_mode=ParseMode.MARKDOWN,
+                )
+            except Exception as e:
+                logger.error(f"Errore invio messaggio: {e}")
+
+    app.job_queue.run_repeating(process_queue, interval=2, first=1)
+
     app.run_polling(drop_pending_updates=True)
