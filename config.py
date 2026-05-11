@@ -30,11 +30,11 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 SYMBOLS = ["BTC/USDT", "ETH/USDT"]
 
 # ── SESSIONE ─────────────────────────────────────────────────
-SESSION_START_HOUR   = 14    # 14:00 UTC
-SESSION_END_HOUR     = 22    # 22:00 UTC
+SESSION_START_HOUR   = 0   
+SESSION_END_HOUR     = 24  
 FORCE_CLOSE_HOUR     = 23
 FORCE_CLOSE_MINUTE   = 55
-WEEKEND_FILTER       = True  # Salta sabato e domenica
+WEEKEND_FILTER       = False
 
 # ── INDICATORI ────────────────────────────────────────────────
 ATR_PERIOD   = 14
