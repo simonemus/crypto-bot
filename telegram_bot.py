@@ -293,6 +293,12 @@ async def cmd_set(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(f"⚠️ Parametro `{param}` non riconosciuto.")
 
 
+async def cmd_test(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/test — Manda una notifica di prova per verificare che tutto funzioni."""
+    send_message("🔍 *Test notifica* — il bot sta funzionando correttamente!")
+    await update.message.reply_text("✅ Notifica di prova inviata!", parse_mode=ParseMode.MARKDOWN)    
+
+
 # ── AVVIO APPLICATION ─────────────────────────────────────────
 
 def start_telegram_bot() -> None:
@@ -313,6 +319,7 @@ def start_telegram_bot() -> None:
     app.add_handler(CommandHandler("reportweek",  cmd_report_week))
     app.add_handler(CommandHandler("reportmonth", cmd_report_month))
     app.add_handler(CommandHandler("reportall",   cmd_report_all))
+    app.add_handler(CommandHandler("test", cmd_test))
 
     logger.info("Telegram bot in ascolto…")
     app.run_polling(drop_pending_updates=True)
