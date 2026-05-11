@@ -37,6 +37,7 @@ def _get_app():
 
 
 import queue
+import threading
 _message_queue = queue.Queue()
 
 def send_message(text: str) -> None:
@@ -44,6 +45,36 @@ def send_message(text: str) -> None:
 
 def send_error(text: str) -> None:
     send_message(f"⚠️ *ERRORE*\n{text}")
+
+def _message_worker():
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    bot = None
+    
+    async def _init():
+        from telegram import Bot
+        return Bot(token=config.TELEGRAM_BOT_TOKEN)
+    
+    bot = loop.run_until_complete(_init())
+    
+    while True:
+        try:
+            text = _message_queue.get(timeout=1)
+            async def _send(t):
+                await bot.send_message(
+                    chat_id=config.TELEGRAM_CHAT_ID,
+                    text=t,
+                    parse_mode="Markdown",
+                )
+            loop.run_until_complete(_send(text))
+        except queue.Empty:
+            continue
+        except Exception as e:
+            logger.error(f"Errore invio messaggio: {e}")
+
+_worker_thread = threading.Thread(target=_message_worker, daemon=True)
+_worker_thread.start()
 
 
 # ── COMANDI ───────────────────────────────────────────────────
@@ -299,20 +330,6 @@ def start_telegram_bot() -> None:
     app.add_handler(CommandHandler("reportmonth", cmd_report_month))
     app.add_handler(CommandHandler("reportall",   cmd_report_all))
     app.add_handler(CommandHandler("test",        cmd_test))
-
-    async def process_queue(context):
-        while not _message_queue.empty():
-            text = _message_queue.get()
-            try:
-                await context.bot.send_message(
-                    chat_id=config.TELEGRAM_CHAT_ID,
-                    text=text,
-                    parse_mode=ParseMode.MARKDOWN,
-                )
-            except Exception as e:
-                logger.error(f"Errore invio messaggio: {e}")
-
-    app.job_queue.run_repeating(process_queue, interval=2, first=1)
 
     logger.info("Telegram bot in ascolto…")
     app.run_polling(drop_pending_updates=True)
