@@ -37,17 +37,26 @@ def _get_app():
 
 
 def send_message(text: str) -> None:
-    """Invia un messaggio al CHAT_ID configurato (threading-safe)."""
     import asyncio
     try:
         app = _get_app()
-        asyncio.run(
-            app.bot.send_message(
-                chat_id=config.TELEGRAM_CHAT_ID,
-                text=text,
-                parse_mode=ParseMode.MARKDOWN,
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(
+                app.bot.send_message(
+                    chat_id=config.TELEGRAM_CHAT_ID,
+                    text=text,
+                    parse_mode=ParseMode.MARKDOWN,
+                )
             )
-        )
+        else:
+            loop.run_until_complete(
+                app.bot.send_message(
+                    chat_id=config.TELEGRAM_CHAT_ID,
+                    text=text,
+                    parse_mode=ParseMode.MARKDOWN,
+                )
+            )
     except Exception as e:
         logger.error(f"Errore invio messaggio Telegram: {e}")
 
