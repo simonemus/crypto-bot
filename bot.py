@@ -120,15 +120,6 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
 
         direction = breakout_seen.get(symbol)
 
-            send_message(
-                f"🔍 *Segnale rilevato* — {symbol}\n"
-                f"Direzione: *{direction.upper()}*\n"
-                f"PDH: {pdh:.4f}  PDL: {pdl:.4f}\n"
-                f"Attendo retest su {config.TF_ENTRY}…"
-            )
-            log_signal(symbol, direction, pdh, pdl)
-            return   # aspetta prossimo ciclo per il retest
-
         # --- Retest su 5m ---
         df_5 = fetch_ohlcv(exchange, symbol, config.TF_ENTRY, limit=60)
         df_5 = add_indicators(df_5)
