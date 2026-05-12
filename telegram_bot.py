@@ -320,10 +320,12 @@ async def cmd_livelli(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         lines = ["📊 *Livelli PDH/PDL correnti*\n"]
         for symbol in config.SYMBOLS:
             pdh, pdl = get_previous_day_hl(exchange, symbol)
+            range_pct = round((pdh - pdl) / pdl * 100, 2)
             lines.append(
                 f"*{symbol}*\n"
                 f"PDH: `{pdh:.4f}`\n"
                 f"PDL: `{pdl:.4f}`\n"
+                f"Range: `{range_pct}%`\n"
             )
         await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
     except Exception as e:
