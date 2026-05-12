@@ -314,18 +314,29 @@ async def cmd_test(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def cmd_livelli(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/livelli — Mostra PDH e PDL correnti di tutti gli asset."""
-    from binance_api import get_exchange, get_previous_day_hl
+    from binance_api import get_exchange, get_previous_day_hl, fetch_ohlcv, add_indicators
     try:
         exchange = get_exchange()
         lines = ["📊 *Livelli PDH/PDL correnti*\n"]
         for symbol in config.SYMBOLS:
             pdh, pdl = get_previous_day_hl(exchange, symbol)
             range_pct = round((pdh - pdl) / pdl * 100, 2)
+
+            # Calcola buffer dinamico
+            df_15 = fetch_ohlcv(exchange, symbol, "15m", limit=20)
+            df_15 = add_indicators(df_15)
+            last = df_15.iloc[-2]
+            atr = float(last["atr"])
+            price = float(last["close"])
+            atr_pct = atr / price
+            buffer = round(max(0.0020, atr_pct * 0.50) * 100, 3)
+
             lines.append(
                 f"*{symbol}*\n"
                 f"PDH: `{pdh:.4f}`\n"
                 f"PDL: `{pdl:.4f}`\n"
                 f"Range: `{range_pct}%`\n"
+                f"Buffer attuale: `{buffer}%`\n"
             )
         await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
     except Exception as e:
