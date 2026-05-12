@@ -99,17 +99,26 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
         pdh, pdl = get_previous_day_hl(exchange, symbol)
 
         # --- Breakout su 15m ---
-        direction = breakout_seen.get(symbol) or check_breakout(df_15, pdh, pdl)
-        if not direction:
-            return
-
         if symbol not in breakout_seen:
-            breakout_seen[symbol] = direction
-            # Filtra trend
+            direction = check_breakout(df_15, pdh, pdl)
+            if not direction:
+                return
+
             if not trend_ok(df_15, direction):
                 logger.info(f"{symbol} breakout {direction} — filtro TREND fallito")
-                del breakout_seen[symbol]
                 return
+
+            breakout_seen[symbol] = direction
+            send_message(
+                f"🔍 *Segnale rilevato* — {symbol}\n"
+                f"Direzione: *{direction.upper()}*\n"
+                f"PDH: {pdh:.4f}  PDL: {pdl:.4f}\n"
+                f"Attendo retest su {config.TF_ENTRY}…"
+            )
+            log_signal(symbol, direction, pdh, pdl)
+            return
+
+        direction = breakout_seen.get(symbol)
 
             send_message(
                 f"🔍 *Segnale rilevato* — {symbol}\n"
