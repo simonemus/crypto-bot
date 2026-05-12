@@ -23,7 +23,7 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID", "973221453") # es. "123456789"
 
 # ── ASSET LIST ────────────────────────────────────────────────
-SYMBOLS = ["BTC/USDT", "ETH/USDT"]
+SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
 
 # ── SESSIONE ─────────────────────────────────────────────────
 SESSION_START_HOUR   = 8        # 10:00 Italia
