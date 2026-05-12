@@ -329,7 +329,33 @@ async def cmd_livelli(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             )
         await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
     except Exception as e:
-        await update.message.reply_text(f"⚠️ Errore: {e}")    
+        await update.message.reply_text(f"⚠️ Errore: {e}")
+
+async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/help — Mostra tutti i comandi disponibili."""
+    msg = (
+        "🤖 *Comandi disponibili*\n\n"
+        "⚙️ *Controllo bot*\n"
+        "/start — Avvia il bot di trading\n"
+        "/stop — Ferma il bot\n"
+        "/status — Stato corrente e posizioni aperte\n\n"
+        "📊 *Trading*\n"
+        "/trade — Posizioni aperte con PnL live\n"
+        "/livelli — PDH e PDL correnti di tutti gli asset\n\n"
+        "📈 *Report*\n"
+        "/report — Report giornaliero\n"
+        "/reportweek — Report ultimi 7 giorni\n"
+        "/reportmonth — Report ultimi 30 giorni\n"
+        "/reportall — Report totale\n"
+        "/equity — Equity ultimi 30 giorni\n\n"
+        "⚙️ *Parametri*\n"
+        "/parametri — Parametri correnti\n"
+        "/set rr 2.5 — Modifica il Risk/Reward\n\n"
+        "🔧 *Altro*\n"
+        "/test — Notifica di prova\n"
+        "/help — Mostra questo messaggio"
+    )
+    await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)            
 
 
 # ── AVVIO APPLICATION ─────────────────────────────────────────
@@ -350,6 +376,7 @@ def start_telegram_bot() -> None:
     app.add_handler(CommandHandler("reportall",   cmd_report_all))
     app.add_handler(CommandHandler("test",        cmd_test))
     app.add_handler(CommandHandler("livelli",     cmd_livelli))
+    app.add_handler(CommandHandler("help",        cmd_help))
 
     logger.info("Telegram bot in ascolto…")
     app.run_polling(drop_pending_updates=True)
