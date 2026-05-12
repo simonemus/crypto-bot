@@ -206,18 +206,20 @@ def check_breakout(df_15m: pd.DataFrame, pdh: float, pdl: float) -> str | None:
 def check_retest(df_5m: pd.DataFrame, pdh: float, pdl: float, direction: str) -> bool:
     """
     Verifica su 5m se il prezzo è tornato a fare retest del livello rotto.
+    Buffer asimmetrico: più tollerante verso il livello, più restrittivo oltre.
     """
     last = df_5m.iloc[-2]
-    tol = RETEST_BUFFER / 100
-
+    
     if direction == "long":
-        retest_zone_hi = pdh * (1 + tol)
-        retest_zone_lo = pdh * (1 - tol)
+        # Retest del PDH da sotto
+        retest_zone_hi = pdh * (1 + 0.0010)   # 0.10% sopra PDH
+        retest_zone_lo = pdh * (1 - 0.0050)   # 0.50% sotto PDH
         touched = retest_zone_lo <= last["low"] <= retest_zone_hi or \
                   retest_zone_lo <= last["close"] <= retest_zone_hi
     else:
-        retest_zone_hi = pdl * (1 + tol)
-        retest_zone_lo = pdl * (1 - tol)
+        # Retest del PDL da sopra
+        retest_zone_hi = pdl * (1 + 0.0010)   # 0.10% sopra PDL
+        retest_zone_lo = pdl * (1 - 0.0050)   # 0.50% sotto PDL
         touched = retest_zone_lo <= last["high"] <= retest_zone_hi or \
                   retest_zone_lo <= last["close"] <= retest_zone_hi
 

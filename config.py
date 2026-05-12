@@ -40,8 +40,8 @@ EMA_SLOW     = 50
 # ── GESTIONE RISCHIO ──────────────────────────────────────────
 RISK_REWARD_RATIO   = 2.0    # RR di default (modificabile via /set rr)
 MAX_RISK_ATR        = 1.30   # SL = entry ± ATR * MAX_RISK_ATR
-BREAKOUT_BUFFER     = 0.10   # % di buffer sopra/sotto PDH/PDL
-RETEST_BUFFER       = 0.15   # % di tolleranza per il retest
+BREAKOUT_BUFFER     = 0.20   # % di buffer sopra/sotto PDH/PDL
+RETEST_BUFFER       = 0.50   # % di tolleranza per il retest
 RISK_PER_TRADE_PCT  = 1.0    # % del capitale da rischiare per trade
 
 # ── LIMITI OPERATIVI ─────────────────────────────────────────
