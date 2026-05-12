@@ -310,7 +310,24 @@ async def cmd_set(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_test(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/test — Manda una notifica di prova per verificare che tutto funzioni."""
     send_message("🔍 *Test notifica* — il bot sta funzionando correttamente!")
-    await update.message.reply_text("✅ Notifica di prova inviata!", parse_mode=ParseMode.MARKDOWN)    
+    await update.message.reply_text("✅ Notifica di prova inviata!", parse_mode=ParseMode.MARKDOWN)
+
+async def cmd_livelli(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/livelli — Mostra PDH e PDL correnti di tutti gli asset."""
+    from binance_api import get_exchange, get_previous_day_hl
+    try:
+        exchange = get_exchange()
+        lines = ["📊 *Livelli PDH/PDL correnti*\n"]
+        for symbol in config.SYMBOLS:
+            pdh, pdl = get_previous_day_hl(exchange, symbol)
+            lines.append(
+                f"*{symbol}*\n"
+                f"PDH: `{pdh:.4f}`\n"
+                f"PDL: `{pdl:.4f}`\n"
+            )
+        await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
+    except Exception as e:
+        await update.message.reply_text(f"⚠️ Errore: {e}")    
 
 
 # ── AVVIO APPLICATION ─────────────────────────────────────────
@@ -330,6 +347,7 @@ def start_telegram_bot() -> None:
     app.add_handler(CommandHandler("reportmonth", cmd_report_month))
     app.add_handler(CommandHandler("reportall",   cmd_report_all))
     app.add_handler(CommandHandler("test",        cmd_test))
+    app.add_handler(CommandHandler("livelli",     cmd_livelli))
 
     logger.info("Telegram bot in ascolto…")
     app.run_polling(drop_pending_updates=True)
