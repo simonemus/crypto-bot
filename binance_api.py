@@ -187,18 +187,27 @@ def detect_pattern(df: pd.DataFrame, direction: str) -> str | None:
 def check_breakout(df_15m: pd.DataFrame, pdh: float, pdl: float) -> str | None:
     """
     Verifica su 15m se il prezzo ha rotto PDH (long) o PDL (short)
-    con il buffer configurato.
-    Restituisce 'long', 'short' oppure None.
+    con buffer dinamico basato su ATR.
     """
-    last_close = float(df_15m.iloc[-2]["close"])
-    buf_h = pdh * (1 + BREAKOUT_BUFFER / 100)
-    buf_l = pdl * (1 - BREAKOUT_BUFFER / 100)
+    last = df_15m.iloc[-2]
+    last_close = float(last["close"])
+    current_price = last_close
+    atr = float(last["atr"])
+
+    # Buffer dinamico: max(0.20%, ATR% × 0.50)
+    atr_pct = atr / current_price
+    breakout_buffer = max(0.0020, atr_pct * 0.50)
+
+    buf_h = pdh * (1 + breakout_buffer)
+    buf_l = pdl * (1 - breakout_buffer)
+
+    logger.debug(f"Buffer dinamico: {breakout_buffer*100:.3f}% (ATR%={atr_pct*100:.3f}%)")
 
     if last_close > buf_h:
-        logger.info(f"Breakout LONG confermato: close={last_close:.4f} > PDH_buf={buf_h:.4f}")
+        logger.info(f"Breakout LONG confermato: close={last_close:.4f} > PDH_buf={buf_h:.4f} (buffer={breakout_buffer*100:.2f}%)")
         return "long"
     if last_close < buf_l:
-        logger.info(f"Breakout SHORT confermato: close={last_close:.4f} < PDL_buf={buf_l:.4f}")
+        logger.info(f"Breakout SHORT confermato: close={last_close:.4f} < PDL_buf={buf_l:.4f} (buffer={breakout_buffer*100:.2f}%)")
         return "short"
     return None
 
