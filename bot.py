@@ -24,6 +24,7 @@ from database import (
     log_signal, log_trade_open, log_trade_close,
     log_equity, get_config_param, set_config_param,
     get_daily_trade_count, get_open_trade,
+    save_breakout, load_breakouts, clear_breakout, clear_all_breakouts,
 )
 
 # ── LOGGING ───────────────────────────────────────────────────
@@ -109,6 +110,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
                 return
 
             breakout_seen[symbol] = direction
+            save_breakout(symbol, direction)
             send_message(
                 f"🔍 *Segnale rilevato* — {symbol}\n"
                 f"Direzione: *{direction.upper()}*\n"
@@ -141,6 +143,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
         if not atr_ok(df_15, entry, sl):
             logger.info(f"{symbol} — filtro ATR fallito (SL troppo lontano)")
             del breakout_seen[symbol]
+            clear_breakout(symbol)
             return
 
         # --- Dimensionamento posizione ---
@@ -174,6 +177,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
             "pattern":   pattern,
         }
         del breakout_seen[symbol]
+        clear_breakout(symbol)
 
         # --- DB + notifica ---
         log_trade_open(symbol, direction, entry, sl, tp, qty, pattern)
@@ -273,7 +277,7 @@ def force_close_all(exchange) -> None:
             logger.error(f"Errore force close {symbol}: {e}")
         finally:
             del open_trades[symbol]
-
+            clear_breakout(symbol)
 
 def send_evening_report(exchange) -> None:
     """Invia il report serale delle 22:00."""
@@ -304,6 +308,8 @@ def run_bot() -> None:
     """Loop principale del bot — chiama start() da telegram_bot.py."""
     global BOT_RUNNING, breakout_seen
     BOT_RUNNING = True
+    breakout_seen = load_breakouts()
+    logger.info(f"Breakout caricati dal DB: {breakout_seen}")
 
     logger.info("=== BOT AVVIATO ===")
     send_message("🟢 Bot avviato")
@@ -319,6 +325,7 @@ def run_bot() -> None:
             # Reset giornaliero
             if now.hour == 0 and now.minute < 2:
                 breakout_seen = {}
+                clear_all_breakouts()
                 report_sent_today = False
                 force_closed_today = False
 

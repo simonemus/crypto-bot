@@ -218,3 +218,52 @@ def get_trades_from(days):
     except Exception as e:
         logger.error(f"DB get_trades_from error: {e}")
         return []
+
+def save_breakout(symbol, direction):
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO config (key, value, updated_at) VALUES (%s,%s,%s) ON CONFLICT (key) DO UPDATE SET value=%s, updated_at=%s",
+            (f"breakout_{symbol}", direction, _now_iso(), direction, _now_iso())
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error(f"DB save_breakout error: {e}")
+
+def load_breakouts():
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT key, value FROM config WHERE key LIKE 'breakout_%'")
+        rows = cur.fetchall()
+        conn.close()
+        result = {}
+        for r in rows:
+            symbol = r[0].replace("breakout_", "")
+            result[symbol] = r[1]
+        return result
+    except Exception as e:
+        logger.error(f"DB load_breakouts error: {e}")
+        return {}
+
+def clear_breakout(symbol):
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM config WHERE key=%s", (f"breakout_{symbol}",))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error(f"DB clear_breakout error: {e}")
+
+def clear_all_breakouts():
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM config WHERE key LIKE 'breakout_%'")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error(f"DB clear_all_breakouts error: {e}")        
