@@ -26,11 +26,11 @@ TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID", "973221453") # es. "123456789
 SYMBOLS = ["BTC/USDT", "ETH/USDT"]
 
 # ── SESSIONE ─────────────────────────────────────────────────
-SESSION_START_HOUR   = 0   
-SESSION_END_HOUR     = 24  
-FORCE_CLOSE_HOUR     = 23
-FORCE_CLOSE_MINUTE   = 55
-WEEKEND_FILTER       = False
+SESSION_START_HOUR   = 8        # 10:00 Italia
+SESSION_END_HOUR     = 20       # 22:00 Italia
+FORCE_CLOSE_HOUR     = 20       # 22:00 Italia (chiusura forzata di tutte le posizioni aperte)
+FORCE_CLOSE_MINUTE   = 5
+WEEKEND_FILTER       = True     # Non operare durante il weekend (venerdì 22:00 - lunedì 08:00 Italia)
 
 # ── INDICATORI ────────────────────────────────────────────────
 ATR_PERIOD   = 14
