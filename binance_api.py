@@ -341,6 +341,7 @@ def get_balance_usdt(exchange: ccxt.binance) -> float:
 
 
 def get_ticker_price(exchange: ccxt.binance, symbol: str) -> float:
-    """Prezzo corrente ask del ticker."""
+    """Prezzo corrente del ticker — compatibile con futures e spot."""
     ticker = exchange.fetch_ticker(symbol)
-    return float(ticker["ask"])
+    price = ticker.get("last") or ticker.get("ask") or ticker.get("close")
+    return float(price)
