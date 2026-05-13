@@ -12,14 +12,13 @@ import logging
 from datetime import datetime, timezone, timedelta
 from config import (
     TESTNET,
-    BINANCE_TESTNET_API_KEY, BINANCE_TESTNET_API_SECRET,
-    BINANCE_LIVE_API_KEY,    BINANCE_LIVE_API_SECRET,
+    BINANCE_FUTURES_TESTNET_API_KEY, BINANCE_FUTURES_TESTNET_API_SECRET,
+    BINANCE_FUTURES_LIVE_API_KEY,    BINANCE_FUTURES_LIVE_API_SECRET,
+    BINANCE_LIVE_API_KEY,            BINANCE_LIVE_API_SECRET,
     ATR_PERIOD, EMA_FAST, EMA_SLOW,
     BREAKOUT_BUFFER, RETEST_BUFFER, MAX_RISK_ATR,
     TF_SIGNAL, TF_ENTRY, PATTERNS_ENABLED,
 )
-
-logger = logging.getLogger(__name__)
 
 
 # ── CONNESSIONE ───────────────────────────────────────────────
