@@ -27,16 +27,16 @@ def get_exchange() -> ccxt.binance:
     """Restituisce istanza ccxt.binance configurata per futures testnet o live."""
     if TESTNET:
         exchange = ccxt.binance({
-            "apiKey":  config.BINANCE_FUTURES_TESTNET_API_KEY,
-            "secret":  config.BINANCE_FUTURES_TESTNET_API_SECRET,
+            "apiKey":  BINANCE_FUTURES_TESTNET_API_KEY,
+            "secret":  BINANCE_FUTURES_TESTNET_API_SECRET,
             "options": {"defaultType": "future"},
         })
         exchange.set_sandbox_mode(True)
         logger.info("Connesso a Binance FUTURES TESTNET")
     else:
         exchange = ccxt.binance({
-            "apiKey":  config.BINANCE_FUTURES_LIVE_API_KEY,
-            "secret":  config.BINANCE_FUTURES_LIVE_API_SECRET,
+            "apiKey":  BINANCE_FUTURES_LIVE_API_KEY,
+            "secret":  BINANCE_FUTURES_LIVE_API_SECRET,
             "options": {"defaultType": "future"},
         })
         logger.info("Connesso a Binance FUTURES LIVE")
