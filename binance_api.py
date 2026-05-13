@@ -24,15 +24,24 @@ logger = logging.getLogger(__name__)
 # ── CONNESSIONE ───────────────────────────────────────────────
 
 def get_exchange() -> ccxt.binance:
-    """Restituisce istanza ccxt.binance configurata per futures testnet o live."""
+    """Restituisce istanza ccxt.binance configurata per futures demo o live."""
     if TESTNET:
         exchange = ccxt.binance({
             "apiKey":  BINANCE_FUTURES_TESTNET_API_KEY,
             "secret":  BINANCE_FUTURES_TESTNET_API_SECRET,
-            "options": {"defaultType": "future"},
+            "options": {
+                "defaultType": "future",
+                "urls": {
+                    "api": {
+                        "fapiPublic":  "https://demo-fapi.binance.com/fapi/v1",
+                        "fapiPrivate": "https://demo-fapi.binance.com/fapi/v1",
+                        "fapiPublicV2": "https://demo-fapi.binance.com/fapi/v2",
+                        "fapiPrivateV2": "https://demo-fapi.binance.com/fapi/v2",
+                    }
+                }
+            },
         })
-        exchange.set_sandbox_mode(True)
-        logger.info("Connesso a Binance FUTURES TESTNET")
+        logger.info("Connesso a Binance FUTURES DEMO")
     else:
         exchange = ccxt.binance({
             "apiKey":  BINANCE_FUTURES_LIVE_API_KEY,
