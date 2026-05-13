@@ -132,7 +132,15 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
         # --- Pattern candele su 5m ---
         pattern = detect_pattern(df_5, direction)
         if not pattern:
-            logger.info(f"{symbol} retest ok ma nessun pattern — skip")
+            last = df_5.iloc[-2]
+            prev = df_5.iloc[-3]
+            logger.info(
+                f"{symbol} retest ok ma nessun pattern — skip\n"
+                f"  candela corrente: open={last['open']:.4f} high={last['high']:.4f} "
+                f"low={last['low']:.4f} close={last['close']:.4f}\n"
+                f"  candela precedente: open={prev['open']:.4f} high={prev['high']:.4f} "
+                f"low={prev['low']:.4f} close={prev['close']:.4f}"
+            )
             return
 
         # --- Calcolo entry / SL / TP ---
