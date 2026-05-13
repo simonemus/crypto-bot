@@ -4,6 +4,7 @@
 #  calcolo indicatori, pattern candele e invio ordini.
 # ============================================================
 
+import config
 import ccxt
 import pandas as pd
 import numpy as np
