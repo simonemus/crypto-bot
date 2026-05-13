@@ -29,7 +29,10 @@ def get_exchange():
         exchange = ccxt.binanceusdm({
             "apiKey":  BINANCE_FUTURES_TESTNET_API_KEY,
             "secret":  BINANCE_FUTURES_TESTNET_API_SECRET,
-            "options": {"defaultType": "future"},
+            "options": {
+                "defaultType": "future",
+                "fetchCurrencies": False,
+            },
             "urls": {
                 "api": {
                     "fapiPublic":   "https://demo-fapi.binance.com/fapi/v1",
