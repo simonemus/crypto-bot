@@ -159,6 +159,12 @@ def is_bearish_engulfing(prev, curr) -> bool:
     engulfs = curr["open"] >= prev["close"] and curr["close"] <= prev["open"]
     return prev_bullish and curr_bearish and engulfs
 
+def is_doji(row) -> bool:
+    """Doji: corpo molto piccolo rispetto al prezzo."""
+    body = _body(row)
+    price = row["close"]
+    return body / price <= 0.001    
+
 def detect_pattern(df: pd.DataFrame, direction: str) -> str | None:
     """
     Controlla le ultime due candele chiuse.
@@ -173,11 +179,15 @@ def detect_pattern(df: pd.DataFrame, direction: str) -> str | None:
             return "hammer"
         if is_bullish_engulfing(prev, curr):
             return "bullish_engulfing"
+        if is_doji(curr):
+            return "doji"
     else:
         if is_shooting_star(curr):
             return "shooting_star"
         if is_bearish_engulfing(prev, curr):
             return "bearish_engulfing"
+        if is_doji(curr):
+            return "doji"
 
     return None
 
