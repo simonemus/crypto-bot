@@ -356,18 +356,17 @@ def close_position_market(exchange: ccxt.binance, symbol: str,
 # ── BILANCIO ──────────────────────────────────────────────────
 
 def get_balance_usdt(exchange: ccxt.binance) -> float:
-    """Restituisce il saldo disponibile in USDT — compatibile con futures e spot."""
+    """Restituisce il saldo disponibile in USDT — compatibile con futures demo."""
     try:
         balance = exchange.fetch_balance()
-        logger.info(f"Balance raw: {balance.get('info', {}).get('assets', 'N/A')[:3]}")
-        # Futures
-        if "USDT" in balance.get("free", {}):
-            return float(balance["free"]["USDT"])
-        # Futures alternativo
         assets = balance.get("info", {}).get("assets", [])
         for asset in assets:
             if asset.get("asset") == "USDT":
                 return float(asset.get("availableBalance", 0))
+        # Fallback
+        free = balance.get("free", {})
+        if "USDT" in free:
+            return float(free["USDT"])
         return 0.0
     except Exception as e:
         logger.error(f"Errore get_balance_usdt: {e}")
