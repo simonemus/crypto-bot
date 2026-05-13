@@ -150,8 +150,6 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
 
         if not atr_ok(df_15, entry, sl):
             logger.info(f"{symbol} — filtro ATR fallito (SL troppo lontano)")
-            del breakout_seen[symbol]
-            clear_breakout(symbol)
             return
 
         # --- Dimensionamento posizione ---
