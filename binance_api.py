@@ -4,7 +4,6 @@
 #  calcolo indicatori, pattern candele e invio ordini.
 # ============================================================
 
-import config
 import ccxt
 import pandas as pd
 import numpy as np
@@ -19,6 +18,7 @@ from config import (
     BREAKOUT_BUFFER, RETEST_BUFFER, MAX_RISK_ATR,
     TF_SIGNAL, TF_ENTRY, PATTERNS_ENABLED,
 )
+logger = logging.getLogger(__name__)
 
 
 # ── CONNESSIONE ───────────────────────────────────────────────
