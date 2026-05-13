@@ -347,6 +347,7 @@ def get_balance_usdt(exchange: ccxt.binance) -> float:
     """Restituisce il saldo disponibile in USDT — compatibile con futures e spot."""
     try:
         balance = exchange.fetch_balance()
+        logger.info(f"Balance raw: {balance.get('info', {}).get('assets', 'N/A')[:3]}")
         # Futures
         if "USDT" in balance.get("free", {}):
             return float(balance["free"]["USDT"])
