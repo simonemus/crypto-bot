@@ -322,7 +322,6 @@ async def cmd_livelli(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             pdh, pdl = get_previous_day_hl(exchange, symbol)
             range_pct = round((pdh - pdl) / pdl * 100, 2)
 
-            # Calcola buffer dinamico
             df_15 = fetch_ohlcv(exchange, symbol, "15m", limit=20)
             df_15 = add_indicators(df_15)
             last = df_15.iloc[-2]
@@ -336,6 +335,7 @@ async def cmd_livelli(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 f"PDH: `{pdh:.4f}`\n"
                 f"PDL: `{pdl:.4f}`\n"
                 f"Range: `{range_pct}%`\n"
+                f"ATR 15m: `{atr:.4f}`\n"
                 f"Buffer attuale: `{buffer}%`\n"
             )
         await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
