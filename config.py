@@ -10,10 +10,6 @@ import os
 TESTNET = True   # True = Binance Testnet  |  False = Live
 
 # ── BINANCE API ───────────────────────────────────────────────
-# Testnet keys (https://testnet.binance.vision)
-BINANCE_TESTNET_API_KEY    = "Cc67mkuZqs7Ywcrj2sXUNv4sayEYymVOUpE6BisOt1IOdgT3iEmABRSSAkIr3ZWA"
-BINANCE_TESTNET_API_SECRET = "QcenSpFiASUb5M4pGxdbFNtNmD5EbYnDVlQ2ATe6LSUHwMiQTvWecxmhmF3W27Dx"
-
 # Live keys
 BINANCE_LIVE_API_KEY    = "YOUR_LIVE_API_KEY"
 BINANCE_LIVE_API_SECRET = "YOUR_LIVE_API_SECRET"
