@@ -29,8 +29,17 @@ def get_exchange():
         exchange = ccxt.binanceusdm({
             "apiKey":  BINANCE_FUTURES_TESTNET_API_KEY,
             "secret":  BINANCE_FUTURES_TESTNET_API_SECRET,
-            "hostname": "demo-fapi.binance.com",
             "options": {"defaultType": "future"},
+            "urls": {
+                "api": {
+                    "fapiPublic":   "https://demo-fapi.binance.com/fapi/v1",
+                    "fapiPrivate":  "https://demo-fapi.binance.com/fapi/v1",
+                    "fapiPublicV2": "https://demo-fapi.binance.com/fapi/v2",
+                    "fapiPrivateV2":"https://demo-fapi.binance.com/fapi/v2",
+                    "fapiPublicV3": "https://demo-fapi.binance.com/fapi/v3",
+                    "fapiPrivateV3":"https://demo-fapi.binance.com/fapi/v3",
+                }
+            },
         })
         logger.info("Connesso a Binance FUTURES DEMO")
     else:
