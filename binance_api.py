@@ -206,7 +206,7 @@ def check_breakout(df_15m: pd.DataFrame, pdh: float, pdl: float) -> str | None:
 
     # Buffer dinamico: max(0.20%, ATR% × 0.50)
     atr_pct = atr / current_price
-    breakout_buffer = max(0.0020, atr_pct * 0.50)
+    breakout_buffer = max(0.0020, atr_pct * 1.5)
 
     buf_h = pdh * (1 + breakout_buffer)
     buf_l = pdl * (1 - breakout_buffer)

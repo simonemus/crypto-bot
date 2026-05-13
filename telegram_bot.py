@@ -328,7 +328,7 @@ async def cmd_livelli(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             atr = float(last["atr"])
             price = float(last["close"])
             atr_pct = atr / price
-            buffer = round(max(0.0020, atr_pct * 0.50) * 100, 3)
+            buffer = round(max(0.0020, atr_pct * 1.5) * 100, 3)
 
             lines.append(
                 f"*{symbol}*\n"
