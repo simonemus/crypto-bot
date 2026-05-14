@@ -194,7 +194,7 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             f"— {risultato}"
         )
 
-    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
+    await update.message.reply_text("\n".join(lines))
 
 def _format_report(trades, titolo):
     wins   = [t for t in trades if t.get("result") == "tp"]
