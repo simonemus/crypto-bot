@@ -322,15 +322,18 @@ def send_evening_report(exchange) -> None:
         balance = get_balance_usdt(exchange)
         log_equity(balance)
 
-        # Recupera i trade del giorno da DB
         from database import get_today_trades
         trades = get_today_trades()
         wins   = [t for t in trades if t.get("result") == "tp"]
         losses = [t for t in trades if t.get("result") == "sl"]
+        force  = [t for t in trades if t.get("result") == "force_close"]
+        total  = len(trades)
+        winrate = round(len(wins) / total * 100, 1) if total else 0
 
         msg = (
             f"📊 *Report serale — {now_utc().strftime('%d/%m/%Y')}*\n"
-            f"Trade oggi: {len(trades)} | ✅ Win: {len(wins)} | 🔴 Loss: {len(losses)}\n"
+            f"Trade oggi: {total} | ✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚠️ Force: {len(force)}\n"
+            f"Win rate: {winrate}%\n"
             f"Equity attuale: `{balance:.2f} USDT`"
         )
         send_message(msg)
