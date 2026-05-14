@@ -164,6 +164,7 @@ async def cmd_trade(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 f"Entry: `{t['entry']:.4f}` | Live: `{price:.4f}`\n"
                 f"SL: `{t['sl']:.4f}` | TP: `{t['tp']:.4f}`\n"
                 f"PnL: `{pnl_sign}{pnl_pct:.2f}%`\n"
+                f"Pattern: `{t.get('pattern', 'N/D')}`\n"
             )
         except Exception as e:
             lines.append(f"{sym}: errore dati ({e})")
