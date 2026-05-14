@@ -309,26 +309,45 @@ def place_market_order(exchange: ccxt.binance, symbol: str,
     return order
 
 
-def place_oco_order(exchange: ccxt.binance, symbol: str, side: str,
-                    qty: float, tp: float, sl: float, sl_limit_offset_pct: float = 0.1) -> dict:
+def place_sl_tp_orders(exchange, symbol: str, side: str,
+                       qty: float, tp: float, sl: float) -> dict:
     """
-    Invia ordine OCO (One-Cancels-the-Other) per TP e SL.
-    sl_limit_offset_pct: offset % del SL limit rispetto al SL stop.
+    Invia ordini separati TAKE_PROFIT_MARKET e STOP_MARKET per futures.
+    side: 'sell' per LONG, 'buy' per SHORT
     """
-    sl_limit = sl * (1 - sl_limit_offset_pct / 100) if side == "sell" else sl * (1 + sl_limit_offset_pct / 100)
-    sl_limit = round(sl_limit, 6)
+    results = {}
 
-    logger.info(f"Invio OCO {side.upper()} qty={qty} tp={tp} sl={sl} sl_limit={sl_limit}")
+    # Take Profit
+    try:
+        tp_order = exchange.create_order(
+            symbol, "TAKE_PROFIT_MARKET", side, qty,
+            params={
+                "stopPrice": tp,
+                "closePosition": True,
+                "workingType": "MARK_PRICE",
+            }
+        )
+        results["tp_order"] = tp_order
+        logger.info(f"TP order piazzato: {tp}")
+    except Exception as e:
+        logger.error(f"Errore TP order: {e}")
 
-    params = {
-        "stopPrice":      str(sl),
-        "stopLimitPrice": str(sl_limit),
-        "stopLimitTimeInForce": "GTC",
-    }
-    order = exchange.create_order(
-        symbol, "oco", side, qty, tp, params
-    )
-    return order
+    # Stop Loss
+    try:
+        sl_order = exchange.create_order(
+            symbol, "STOP_MARKET", side, qty,
+            params={
+                "stopPrice": sl,
+                "closePosition": True,
+                "workingType": "MARK_PRICE",
+            }
+        )
+        results["sl_order"] = sl_order
+        logger.info(f"SL order piazzato: {sl}")
+    except Exception as e:
+        logger.error(f"Errore SL order: {e}")
+
+    return results
 
 
 def cancel_all_orders(exchange: ccxt.binance, symbol: str) -> None:

@@ -15,7 +15,7 @@ from binance_api import (
     get_previous_day_hl, check_breakout, check_retest,
     detect_pattern, trend_ok, atr_ok,
     calc_sl_tp, calc_quantity,
-    place_market_order, place_oco_order,
+    place_market_order, place_sl_tp_orders,
     close_position_market, cancel_all_orders,
     get_balance_usdt, get_ticker_price,
 )
@@ -166,11 +166,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
 
         # --- OCO per SL/TP ---
         oco_side = "sell" if direction == "long" else "buy"
-        try:
-            oco = place_oco_order(exchange, symbol, oco_side, qty, tp, sl)
-        except Exception as oco_err:
-            logger.error(f"OCO fallito, gestione SL/TP manuale: {oco_err}")
-            oco = {}
+        oco = place_sl_tp_orders(exchange, symbol, oco_side, qty, tp, sl)
 
         open_trades[symbol] = {
             "direction": direction,
