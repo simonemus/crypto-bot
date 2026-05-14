@@ -254,8 +254,8 @@ def force_close_all(exchange) -> None:
     if not open_trades:
         return
 
-    logger.info("Chiusura forzata 23:55 — chiudo tutte le posizioni")
-    send_message("⚠️ Chiusura forzata 23:55 — chiudo tutte le posizioni aperte")
+    logger.info("Chiusura forzata — chiudo tutte le posizioni")
+    send_message("⚠️ Chiusura forzata — chiudo tutte le posizioni aperte")
 
     for symbol, trade in list(open_trades.items()):
         try:
@@ -268,17 +268,29 @@ def force_close_all(exchange) -> None:
                 pnl_pct = -pnl_pct
             pnl_pct = round(pnl_pct, 2)
 
-            log_trade_close(symbol, price, "force_close", pnl_pct)
+            # Determina il risultato in base al PnL
+            if pnl_pct > 0:
+                result = "tp"
+                emoji = "✅"
+            elif pnl_pct < 0:
+                result = "sl"
+                emoji = "🔴"
+            else:
+                result = "force_close"
+                emoji = "⚠️"
 
+            log_trade_close(symbol, price, result, pnl_pct)
             sign = "+" if pnl_pct >= 0 else ""
             send_message(
-                f"⚠️ *Force Close* — {symbol}\n"
-                f"Exit: `{price:.4f}` | PnL: `{sign}{pnl_pct}%`"
+                f"{emoji} *Force Close* — {symbol}\n"
+                f"Exit: `{price:.4f}` | PnL: `{sign}{pnl_pct}%`\n"
+                f"Risultato: {result}"
             )
         except Exception as e:
             logger.error(f"Errore force close {symbol}: {e}")
         finally:
-            del open_trades[symbol]
+            if symbol in open_trades:
+                del open_trades[symbol]
             clear_breakout(symbol)
 
 def send_evening_report(exchange) -> None:
