@@ -293,6 +293,29 @@ def force_close_all(exchange) -> None:
                 del open_trades[symbol]
             clear_breakout(symbol)
 
+def send_pnl_update(exchange) -> None:
+    """Manda aggiornamento PnL delle posizioni aperte."""
+    if not open_trades:
+        return
+    try:
+        lines = ["📊 *Aggiornamento PnL*\n"]
+        for symbol, trade in open_trades.items():
+            price = get_ticker_price(exchange, symbol)
+            pnl_pct = (price - trade["entry"]) / trade["entry"] * 100
+            if trade["direction"] == "short":
+                pnl_pct = -pnl_pct
+            pnl_pct = round(pnl_pct, 2)
+            sign = "+" if pnl_pct >= 0 else ""
+            lines.append(
+                f"*{symbol}* {trade['direction'].upper()}\n"
+                f"Entry: `{trade['entry']:.4f}` | Live: `{price:.4f}`\n"
+                f"PnL: `{sign}{pnl_pct}%`\n"
+                f"SL: `{trade['sl']:.4f}` | TP: `{trade['tp']:.4f}`"
+            )
+        send_message("\n".join(lines))
+    except Exception as e:
+        logger.error(f"Errore send_pnl_update: {e}")            
+
 def send_evening_report(exchange) -> None:
     """Invia il report serale delle 22:00."""
     try:
@@ -331,6 +354,7 @@ def run_bot() -> None:
     exchange = get_exchange()
     report_sent_today = False
     force_closed_today = False
+    last_pnl_notify = None
 
     while BOT_RUNNING:
         try:
@@ -342,6 +366,14 @@ def run_bot() -> None:
                 clear_all_breakouts()
                 report_sent_today = False
                 force_closed_today = False
+
+            # Notifica PnL oraria
+            if open_trades:
+                now = now_utc()
+                if last_pnl_notify is None or \
+                   (now - last_pnl_notify).seconds >= config.PNL_NOTIFY_INTERVAL_MINUTES * 60:
+                    send_pnl_update(exchange)
+                    last_pnl_notify = now    
 
             # Report serale
             if is_report_time() and not report_sent_today:

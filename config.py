@@ -65,3 +65,6 @@ REPORT_MINUTE = 0
 # ── LOGGING ───────────────────────────────────────────────────
 LOG_LEVEL = "INFO"   # DEBUG | INFO | WARNING | ERROR
 LOG_FILE  = "bot.log"
+
+# ── NOTIFICHE PNL ─────────────────────────────────────────────
+PNL_NOTIFY_INTERVAL_MINUTES = 60   # Intervallo in minuti per notifica PnL automatica
