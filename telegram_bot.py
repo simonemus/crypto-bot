@@ -187,10 +187,11 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"Win rate: {winrate}%",
     ]
     for t in trades:
-        emoji = {"tp": "✅", "sl": "🔴", "force_close": "⚠️"}.get(t.get("result", ""), "•")
+        risultato = t.get("result") or "aperto"
+        emoji = {"tp": "✅", "sl": "🔴", "force_close": "⚠️"}.get(risultato, "•")
         lines.append(
             f"{emoji} {t['symbol']} {t.get('direction','').upper()} "
-            f"— {t.get('result','N/D')}"
+            f"— {risultato}"
         )
 
     await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
