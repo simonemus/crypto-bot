@@ -46,6 +46,7 @@ logger.addHandler(ch)
 BOT_RUNNING   = False
 open_trades   = {}   # {symbol: {direction, entry, sl, tp, qty, order_id}}
 breakout_seen = {}   # {symbol: direction}  — breakout confermato, attesa retest
+last_pattern_candle = {}   # {symbol: timestamp}  — evita di controllare la stessa candela 5m due volte
 
 # ── UTILITÀ ORARIO ────────────────────────────────────────────
 
@@ -130,6 +131,11 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
             return
 
         # --- Pattern candele su 5m ---
+        last_candle_time = df_5.index[-2]
+        if last_pattern_candle.get(symbol) == last_candle_time:
+            return
+        last_pattern_candle[symbol] = last_candle_time
+
         pattern = detect_pattern(df_5, direction)
         if not pattern:
             last = df_5.iloc[-2]
