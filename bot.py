@@ -184,9 +184,9 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
         # --- DB + notifica ---
         log_trade_open(symbol, direction, entry, sl, tp, qty, pattern)
         send_message(
-            f"📈 *Ordine aperto* — {symbol}\n"
-            f"Direzione: *{direction.upper()}*\n"
-            f"Entry: `{entry:.4f}` | SL: `{sl:.4f}` | TP: `{tp:.4f}`\n"
+            f"📈 Ordine aperto — {symbol}\n"
+            f"Direzione: {direction.upper()}\n"
+            f"Entry: {entry:.4f} | SL: {sl:.4f} | TP: {tp:.4f}\n"
             f"Qty: {qty} | Pattern: {pattern}\n"
             f"RR: {rr}"
         )
