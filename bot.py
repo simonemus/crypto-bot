@@ -131,6 +131,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
             logger.info(f"{symbol} — segnale decaduto, prezzo troppo lontano dal livello")
             del breakout_seen[symbol]
             clear_breakout(symbol)
+            send_message(f"⚠️ Segnale decaduto — {symbol}\nIl prezzo si è allontanato troppo dal livello rotto.")
             return
 
         # --- Retest su 5m ---
