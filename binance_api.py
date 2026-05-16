@@ -397,3 +397,31 @@ def get_ticker_price(exchange: ccxt.binance, symbol: str) -> float:
     ticker = exchange.fetch_ticker(symbol)
     price = ticker.get("last") or ticker.get("ask") or ticker.get("close")
     return float(price)
+
+def _update_sl_order(exchange, symbol: str, new_sl: float, qty: float, direction: str) -> None:
+    """
+    Cancella il vecchio ordine STOP_MARKET e ne piazza uno nuovo con il nuovo SL.
+    direction: 'long' | 'short'
+    """
+    try:
+        side = "buy" if direction == "short" else "sell"
+
+        # Cancella tutti gli ordini STOP_MARKET aperti
+        open_orders = exchange.fetch_open_orders(symbol)
+        for order in open_orders:
+            if order.get("type") in ("stop_market", "stop", "STOP_MARKET"):
+                exchange.cancel_order(order["id"], symbol)
+                logger.info(f"Vecchio SL cancellato: {order['id']}")
+
+        # Piazza nuovo STOP_MARKET
+        exchange.create_order(
+            symbol, "STOP_MARKET", side, qty,
+            params={
+                "stopPrice": new_sl,
+                "closePosition": True,
+                "workingType": "MARK_PRICE",
+            }
+        )
+        logger.info(f"Nuovo SL piazzato a {new_sl:.4f}")
+    except Exception as e:
+        logger.error(f"Errore aggiornamento SL {symbol}: {e}")    
