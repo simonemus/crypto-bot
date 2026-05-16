@@ -18,7 +18,7 @@ from binance_api import (
     place_market_order, place_sl_tp_orders,
     close_position_market, cancel_all_orders,
     get_balance_usdt, get_ticker_price,
-    _update_sl_order,
+    _update_sl_order, check_signal_decay,
 )
 from telegram_bot import send_message, send_error
 from database import (
@@ -124,6 +124,14 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
             return
 
         direction = breakout_seen.get(symbol)
+
+        # --- Controllo decadimento segnale ---
+        current_price = get_ticker_price(exchange, symbol)
+        if check_signal_decay(current_price, pdh, pdl, direction, config.SIGNAL_DECAY_BUFFER):
+            logger.info(f"{symbol} — segnale decaduto, prezzo troppo lontano dal livello")
+            del breakout_seen[symbol]
+            clear_breakout(symbol)
+            return
 
         # --- Retest su 5m ---
         df_5 = fetch_ohlcv(exchange, symbol, config.TF_ENTRY, limit=60)

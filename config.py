@@ -47,6 +47,7 @@ MAX_RISK_ATR        = 1.30   # SL = entry ± ATR * MAX_RISK_ATR
 BREAKOUT_BUFFER     = 0.20   # % di buffer sopra/sotto PDH/PDL
 RETEST_BUFFER       = 0.50   # % di tolleranza per il retest
 RISK_PER_TRADE_PCT  = 1.0    # % del capitale da rischiare per trade
+SIGNAL_DECAY_BUFFER = 0.80   # % massima distanza dal livello rotto prima che il segnale decada
 
 # ── TRAILING STOP LOSS ────────────────────────────────────────
 TRAILING_BREAKEVEN_MULTIPLIER = 0.5   # ATR × 0.5 per attivare breakeven
