@@ -218,7 +218,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
         clear_breakout(symbol)
 
         # --- DB + notifica ---
-        log_trade_open(symbol, direction, entry, sl, tp, qty, pattern)
+        log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=atr_val)
         send_message(
             f"📈 Ordine aperto — {symbol}\n"
             f"Direzione: {direction.upper()}\n"
