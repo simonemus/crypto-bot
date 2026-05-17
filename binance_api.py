@@ -446,4 +446,17 @@ def _update_sl_order(exchange, symbol: str, new_sl: float, qty: float, direction
         )
         logger.info(f"Nuovo SL piazzato a {new_sl:.4f}")
     except Exception as e:
-        logger.error(f"Errore aggiornamento SL {symbol}: {e}")    
+        logger.error(f"Errore aggiornamento SL {symbol}: {e}")
+
+def set_leverage_all(exchange, symbols: list, leverage: int = 2) -> None:
+    """
+    Imposta la leva per tutti gli asset all'avvio del bot.
+    """
+    for symbol in symbols:
+        try:
+            # ccxt vuole il simbolo senza il suffisso :USDT
+            market_symbol = symbol.replace("/USDT:USDT", "/USDT")
+            exchange.set_leverage(leverage, market_symbol)
+            logger.info(f"Leva impostata a {leverage}x per {market_symbol}")
+        except Exception as e:
+            logger.error(f"Errore impostazione leva {symbol}: {e}")            
