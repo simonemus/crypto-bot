@@ -273,7 +273,43 @@ async def cmd_stats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             f"Win rate: {wr_str}\n"
         )
 
-    await update.message.reply_text("\n".join(lines))    
+    await update.message.reply_text("\n".join(lines))
+
+async def cmd_stats_asset(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/statsasset — Statistiche winrate per asset."""
+    from database import get_stats_by_asset
+    stats = get_stats_by_asset()
+
+    if not stats:
+        await update.message.reply_text("Nessun dato disponibile ancora.")
+        return
+
+    # Trova asset con winrate più alto
+    best_asset = None
+    best_winrate = -1
+    for s in stats:
+        if s["total"] > 0:
+            wr = s["wins"] / s["total"] * 100
+            if wr > best_winrate:
+                best_winrate = wr
+                best_asset = s["symbol"]
+
+    lines = ["📊 Statistiche per asset\n"]
+    for s in stats:
+        total = s["total"]
+        wins  = s["wins"]
+        winrate = round(wins / total * 100, 1) if total else 0
+        star = " ⭐" if s["symbol"] == best_asset else ""
+        wr_str = f"{winrate}%" if total > 0 else "N/D"
+        avg_pnl = s["avg_pnl"]
+        sign = "+" if avg_pnl >= 0 else ""
+        lines.append(
+            f"💰 {s['symbol']}{star}\n"
+            f"Trade: {total} | Win: {wins} | Loss: {s['losses']} | Force: {s['force']}\n"
+            f"Win rate: {wr_str} | PnL medio: {sign}{avg_pnl}%\n"
+        )
+
+    await update.message.reply_text("\n".join(lines))        
 
 
 async def cmd_equity(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -411,6 +447,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 def start_telegram_bot() -> None:
     app = ApplicationBuilder().token(config.TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("stats", cmd_stats))
+    app.add_handler(CommandHandler("statsasset", cmd_stats_asset))
 
     app.add_handler(CommandHandler("start",       cmd_start))
     app.add_handler(CommandHandler("stop",        cmd_stop))

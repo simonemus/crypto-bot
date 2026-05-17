@@ -377,3 +377,38 @@ def get_stats_by_pattern() -> list[dict]:
     except Exception as e:
         logger.error(f"DB get_stats_by_pattern error: {e}")
         return []
+
+def get_stats_by_asset() -> list[dict]:
+    """Restituisce statistiche per ogni asset."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 
+                symbol,
+                COUNT(*) as total,
+                SUM(CASE WHEN result = 'tp' THEN 1 ELSE 0 END) as wins,
+                SUM(CASE WHEN result = 'sl' THEN 1 ELSE 0 END) as losses,
+                SUM(CASE WHEN result = 'force_close' THEN 1 ELSE 0 END) as force,
+                ROUND(AVG(pnl_pct)::numeric, 2) as avg_pnl
+            FROM trades
+            WHERE status = 'closed'
+            GROUP BY symbol
+            ORDER BY total DESC
+        """)
+        rows = cur.fetchall()
+        release_db(conn)
+        return [
+            {
+                "symbol":  r[0],
+                "total":   r[1],
+                "wins":    r[2],
+                "losses":  r[3],
+                "force":   r[4],
+                "avg_pnl": float(r[5]) if r[5] else 0.0,
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        logger.error(f"DB get_stats_by_asset error: {e}")
+        return []        
