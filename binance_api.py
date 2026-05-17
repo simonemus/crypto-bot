@@ -459,4 +459,32 @@ def set_leverage_all(exchange, symbols: list, leverage: int = 2) -> None:
             exchange.set_leverage(leverage, market_symbol)
             logger.info(f"Leva impostata a {leverage}x per {market_symbol}")
         except Exception as e:
-            logger.error(f"Errore impostazione leva {symbol}: {e}")            
+            logger.error(f"Errore impostazione leva {symbol}: {e}")
+def get_open_positions(exchange) -> list[dict]:
+    """
+    Restituisce le posizioni aperte su Binance Futures.
+    """
+    try:
+        positions = exchange.fetch_positions()
+        return [
+            p for p in positions
+            if float(p.get("contracts", 0)) != 0
+        ]
+    except Exception as e:
+        logger.error(f"Errore get_open_positions: {e}")
+        return []
+
+
+def has_open_position(exchange, symbol: str) -> bool:
+    """
+    Verifica se esiste già una posizione aperta su Binance per il simbolo.
+    """
+    try:
+        positions = get_open_positions(exchange)
+        for p in positions:
+            if p.get("symbol") == symbol and float(p.get("contracts", 0)) != 0:
+                return True
+        return False
+    except Exception as e:
+        logger.error(f"Errore has_open_position: {e}")
+        return False                        

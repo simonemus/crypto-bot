@@ -19,7 +19,7 @@ from binance_api import (
     close_position_market, cancel_all_orders,
     get_balance_usdt, get_ticker_price,
     _update_sl_order, check_signal_decay,
-    set_leverage_all,
+    set_leverage_all, has_open_position,
 )
 from telegram_bot import send_message, send_error
 from database import (
@@ -90,6 +90,11 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
 
     # Già in posizione → skip
     if symbol in open_trades:
+        return
+
+    # Verifica posizioni aperte su Binance
+    if has_open_position(exchange, symbol):
+        logger.info(f"{symbol} — posizione già aperta su Binance, skip")
         return
 
     # Limite trade/giorno
