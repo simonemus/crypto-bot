@@ -471,6 +471,7 @@ def run_bot() -> None:
     report_sent_today = False
     force_closed_today = False
     last_pnl_notify = None
+    heartbeat_sent_today = False
 
     while BOT_RUNNING:
         try:
@@ -482,6 +483,7 @@ def run_bot() -> None:
                 clear_all_breakouts()
                 report_sent_today = False
                 force_closed_today = False
+                heartbeat_sent_today = False
 
             # Notifica PnL oraria
             if open_trades:
@@ -489,7 +491,31 @@ def run_bot() -> None:
                 if last_pnl_notify is None or \
                    (now - last_pnl_notify).seconds >= config.PNL_NOTIFY_INTERVAL_MINUTES * 60:
                     send_pnl_update(exchange)
-                    last_pnl_notify = now    
+                    last_pnl_notify = now
+
+            # Heartbeat mattutino
+            if now.hour == 6 and now.minute == 50 and not heartbeat_sent_today:
+                balance = get_balance_usdt(exchange)
+                send_message(
+                    f"🟢 Bot attivo — {now.strftime('%d/%m/%Y')}\n"
+                    f"Sessione: tra 10 minuti (07:00 UTC)\n"
+                    f"Equity: {balance:.2f} USDT\n"
+                    f"Asset: {' | '.join(config.SYMBOLS)}\n"
+                    f"Leva: 2x"
+                )
+                heartbeat_sent_today = True
+
+            # Heartbeat mattutino
+            if now.hour == 6 and now.minute == 50 and not heartbeat_sent_today:
+                balance = get_balance_usdt(exchange)
+                send_message(
+                    f"🟢 Bot attivo — {now.strftime('%d/%m/%Y')}\n"
+                    f"Sessione: tra 10 minuti (07:00 UTC)\n"
+                    f"Equity: {balance:.2f} USDT\n"
+                    f"Asset: {' | '.join(config.SYMBOLS)}\n"
+                    f"Leva: 2x"
+                )
+                heartbeat_sent_today = True                
 
             # Report serale
             if is_report_time() and not report_sent_today:
