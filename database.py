@@ -1,5 +1,6 @@
 import logging
 import psycopg2
+from psycopg2 import pool
 import os
 from datetime import datetime, timezone, date, timedelta
 
@@ -7,8 +8,24 @@ logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 
+_pool = None
+
+def get_pool():
+    global _pool
+    if _pool is None:
+        _pool = pool.SimpleConnectionPool(
+            minconn=2,
+            maxconn=10,
+            dsn=DATABASE_URL
+        )
+        logger.info("Connection pool inizializzato")
+    return _pool
+
 def get_db():
-    return psycopg2.connect(DATABASE_URL)
+    return get_pool().getconn()
+
+def release_db(conn):
+    get_pool().putconn(conn)
 
 def init_db():
     try:
@@ -57,7 +74,7 @@ def init_db():
             ON CONFLICT (key) DO NOTHING;
         """)
         conn.commit()
-        conn.close()
+        release_db(conn)
         logger.info("Database inizializzato correttamente")
     except Exception as e:
         logger.error(f"Errore inizializzazione DB: {e}")    
@@ -77,7 +94,7 @@ def log_signal(symbol, direction, pdh, pdl):
             (symbol, direction, pdh, pdl, _now_iso())
         )
         conn.commit()
-        conn.close()
+        release_db(conn)
     except Exception as e:
         logger.error(f"DB log_signal error: {e}")
 
@@ -90,7 +107,7 @@ def log_trade_open(symbol, direction, entry, sl, tp, qty, pattern):
             (symbol, direction, entry, sl, tp, qty, pattern, "open", _today_str(), _now_iso())
         )
         conn.commit()
-        conn.close()
+        release_db(conn)
     except Exception as e:
         logger.error(f"DB log_trade_open error: {e}")
 
@@ -103,7 +120,7 @@ def log_trade_close(symbol, exit_price, result, pnl_pct=0.0):
             (exit_price, result, "closed", _now_iso(), pnl_pct, symbol, "open")
         )
         conn.commit()
-        conn.close()
+        release_db(conn)
     except Exception as e:
         logger.error(f"DB log_trade_close error: {e}")
 
@@ -113,7 +130,7 @@ def get_daily_trade_count(symbol):
         cur = conn.cursor()
         cur.execute("SELECT COUNT(*) FROM trades WHERE symbol=%s AND date=%s", (symbol, _today_str()))
         count = cur.fetchone()[0]
-        conn.close()
+        release_db(conn)
         return count
     except Exception as e:
         logger.error(f"DB get_daily_trade_count error: {e}")
@@ -125,7 +142,7 @@ def get_open_trade(symbol):
         cur = conn.cursor()
         cur.execute("SELECT * FROM trades WHERE symbol=%s AND status=%s LIMIT 1", (symbol, "open"))
         row = cur.fetchone()
-        conn.close()
+        release_db(conn)
         return row
     except Exception as e:
         logger.error(f"DB get_open_trade error: {e}")
@@ -137,7 +154,7 @@ def get_today_trades():
         cur = conn.cursor()
         cur.execute("SELECT symbol, direction, result, date, pnl_pct FROM trades WHERE date=%s", (_today_str(),))
         rows = cur.fetchall()
-        conn.close()
+        release_db(conn)
         return [{"symbol": r[0], "direction": r[1], "result": r[2], "date": str(r[3]), "pnl_pct": float(r[4] or 0)} for r in rows]
     except Exception as e:
         logger.error(f"DB get_today_trades error: {e}")
@@ -152,7 +169,7 @@ def log_equity(balance):
             (_today_str(), balance, _now_iso(), balance)
         )
         conn.commit()
-        conn.close()
+        release_db(conn)
     except Exception as e:
         logger.error(f"DB log_equity error: {e}")
 
@@ -163,7 +180,7 @@ def get_equity_history(days=30):
         cur = conn.cursor()
         cur.execute("SELECT date, balance FROM equity WHERE date>=%s ORDER BY date", (since,))
         rows = cur.fetchall()
-        conn.close()
+        release_db(conn)
         return [{"date": str(r[0]), "balance": float(r[1])} for r in rows]
     except Exception as e:
         logger.error(f"DB get_equity_history error: {e}")
@@ -175,7 +192,7 @@ def get_config_param(key):
         cur = conn.cursor()
         cur.execute("SELECT value FROM config WHERE key=%s LIMIT 1", (key,))
         row = cur.fetchone()
-        conn.close()
+        release_db(conn)
         return row[0] if row else None
     except Exception as e:
         logger.error(f"DB get_config_param error: {e}")
@@ -190,7 +207,7 @@ def set_config_param(key, value):
             (key, value, _now_iso(), value, _now_iso())
         )
         conn.commit()
-        conn.close()
+        release_db(conn)
     except Exception as e:
         logger.error(f"DB set_config_param error: {e}")
 
@@ -200,7 +217,7 @@ def get_all_trades():
         cur = conn.cursor()
         cur.execute("SELECT symbol, direction, result, date, pnl_pct FROM trades ORDER BY date DESC")
         rows = cur.fetchall()
-        conn.close()
+        release_db(conn)
         return [{"symbol": r[0], "direction": r[1], "result": r[2], "date": str(r[3]), "pnl_pct": float(r[4] or 0)} for r in rows]
     except Exception as e:
         logger.error(f"DB get_all_trades error: {e}")
@@ -213,7 +230,7 @@ def get_trades_from(days):
         cur = conn.cursor()
         cur.execute("SELECT symbol, direction, result, date, pnl_pct FROM trades WHERE date>=%s ORDER BY date DESC", (since,))
         rows = cur.fetchall()
-        conn.close()
+        release_db(conn)
         return [{"symbol": r[0], "direction": r[1], "result": r[2], "date": str(r[3]), "pnl_pct": float(r[4] or 0)} for r in rows]
     except Exception as e:
         logger.error(f"DB get_trades_from error: {e}")
@@ -228,7 +245,7 @@ def save_breakout(symbol, direction):
             (f"breakout_{symbol}", direction, _now_iso(), direction, _now_iso())
         )
         conn.commit()
-        conn.close()
+        release_db(conn)
     except Exception as e:
         logger.error(f"DB save_breakout error: {e}")
 
@@ -238,7 +255,7 @@ def load_breakouts():
         cur = conn.cursor()
         cur.execute("SELECT key, value FROM config WHERE key LIKE 'breakout_%'")
         rows = cur.fetchall()
-        conn.close()
+        release_db(conn)
         result = {}
         for r in rows:
             symbol = r[0].replace("breakout_", "")
@@ -254,7 +271,7 @@ def clear_breakout(symbol):
         cur = conn.cursor()
         cur.execute("DELETE FROM config WHERE key=%s", (f"breakout_{symbol}",))
         conn.commit()
-        conn.close()
+        release_db(conn)
     except Exception as e:
         logger.error(f"DB clear_breakout error: {e}")
 
@@ -264,6 +281,6 @@ def clear_all_breakouts():
         cur = conn.cursor()
         cur.execute("DELETE FROM config WHERE key LIKE 'breakout_%'")
         conn.commit()
-        conn.close()
+        release_db(conn)
     except Exception as e:
         logger.error(f"DB clear_all_breakouts error: {e}")        
