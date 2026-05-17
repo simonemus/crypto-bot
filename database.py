@@ -317,7 +317,8 @@ def get_open_trades() -> list[dict]:
         return []
 
 def get_stats_by_pattern() -> list[dict]:
-    """Restituisce statistiche per pattern candele."""
+    """Restituisce statistiche per tutti i pattern configurati."""
+    import config
     try:
         conn = get_db()
         cur = conn.cursor()
@@ -331,20 +332,35 @@ def get_stats_by_pattern() -> list[dict]:
             FROM trades
             WHERE status = 'closed' AND pattern IS NOT NULL
             GROUP BY pattern
-            ORDER BY total DESC
         """)
         rows = cur.fetchall()
         release_db(conn)
-        return [
-            {
-                "pattern": r[0],
-                "total":   r[1],
-                "wins":    r[2],
-                "losses":  r[3],
-                "force":   r[4],
-            }
-            for r in rows
-        ]
+
+        # Crea dizionario con i dati dal DB
+        db_data = {r[0]: {"total": r[1], "wins": r[2], "losses": r[3], "force": r[4]} for r in rows}
+
+        # Aggiunge tutti i pattern configurati anche se con 0 trade
+        result = []
+        for pattern in config.PATTERNS_ENABLED:
+            if pattern in db_data:
+                d = db_data[pattern]
+                result.append({
+                    "pattern": pattern,
+                    "total":   d["total"],
+                    "wins":    d["wins"],
+                    "losses":  d["losses"],
+                    "force":   d["force"],
+                })
+            else:
+                result.append({
+                    "pattern": pattern,
+                    "total":   0,
+                    "wins":    0,
+                    "losses":  0,
+                    "force":   0,
+                })
+
+        return sorted(result, key=lambda x: (x["total"]), reverse=True)
     except Exception as e:
         logger.error(f"DB get_stats_by_pattern error: {e}")
         return []

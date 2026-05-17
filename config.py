@@ -61,7 +61,7 @@ TF_SIGNAL   = "15m"   # timeframe per rilevare breakout + trend
 TF_ENTRY    = "5m"    # timeframe per il retest e i pattern candele
 
 # ── CANDLESTICK PATTERNS ABILITATI ───────────────────────────
-PATTERNS_ENABLED = ["hammer", "bullish_engulfing", "bearish_engulfing", "shooting_star"]
+PATTERNS_ENABLED = ["hammer", "bullish_engulfing", "bearish_engulfing", "shooting_star", "doji"]
 
 # ── REPORT ────────────────────────────────────────────────────
 REPORT_HOUR   = 22

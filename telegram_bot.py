@@ -250,15 +250,27 @@ async def cmd_stats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("Nessun dato disponibile ancora.")
         return
 
+    # Trova il pattern con winrate più alto (solo tra quelli con almeno 1 trade)
+    best_pattern = None
+    best_winrate = -1
+    for s in stats:
+        if s["total"] > 0:
+            wr = s["wins"] / s["total"] * 100
+            if wr > best_winrate:
+                best_winrate = wr
+                best_pattern = s["pattern"]
+
     lines = ["📊 Statistiche per pattern\n"]
     for s in stats:
         total = s["total"]
         wins  = s["wins"]
         winrate = round(wins / total * 100, 1) if total else 0
+        star = " ⭐" if s["pattern"] == best_pattern else ""
+        wr_str = f"{winrate}%" if total > 0 else "N/D"
         lines.append(
-            f"🕯 {s['pattern']}\n"
+            f"🕯 {s['pattern']}{star}\n"
             f"Trade: {total} | Win: {wins} | Loss: {s['losses']} | Force: {s['force']}\n"
-            f"Win rate: {winrate}%\n"
+            f"Win rate: {wr_str}\n"
         )
 
     await update.message.reply_text("\n".join(lines))    
