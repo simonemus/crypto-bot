@@ -311,7 +311,46 @@ async def cmd_stats_asset(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             f"Win rate: {wr_str} | PnL medio: {sign}{avg_pnl}%\n"
         )
 
-    await update.message.reply_text("\n".join(lines))        
+    await update.message.reply_text("\n".join(lines))
+
+async def cmd_stats_direction(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/statsdirection — Statistiche winrate per direzione LONG e SHORT."""
+    from database import get_stats_by_direction
+    stats = get_stats_by_direction()
+
+    if not stats:
+        await update.message.reply_text("Nessun dato disponibile ancora.")
+        return
+
+    # Trova direzione con winrate più alto, in parità vince PnL medio più alto
+    best_dir = None
+    best_winrate = -1
+    best_pnl = -9999
+    for s in stats:
+        if s["total"] > 0:
+            wr = s["wins"] / s["total"] * 100
+            if wr > best_winrate or (wr == best_winrate and s["avg_pnl"] > best_pnl):
+                best_winrate = wr
+                best_pnl = s["avg_pnl"]
+                best_dir = s["direction"]
+
+    lines = ["📊 Statistiche per direzione\n"]
+    for s in stats:
+        total = s["total"]
+        wins  = s["wins"]
+        winrate = round(wins / total * 100, 1) if total else 0
+        star = " ⭐" if s["direction"] == best_dir else ""
+        wr_str = f"{winrate}%" if total > 0 else "N/D"
+        avg_pnl = s["avg_pnl"]
+        sign = "+" if avg_pnl >= 0 else ""
+        emoji = "📈" if s["direction"] == "long" else "📉"
+        lines.append(
+            f"{emoji} {s['direction'].upper()}{star}\n"
+            f"Trade: {total} | Win: {wins} | Loss: {s['losses']} | Force: {s['force']}\n"
+            f"Win rate: {wr_str} | PnL medio: {sign}{avg_pnl}%\n"
+        )
+
+    await update.message.reply_text("\n".join(lines))            
 
 
 async def cmd_equity(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -451,6 +490,7 @@ def start_telegram_bot() -> None:
     app = ApplicationBuilder().token(config.TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("stats", cmd_stats))
     app.add_handler(CommandHandler("statsasset", cmd_stats_asset))
+    app.add_handler(CommandHandler("statsdirection", cmd_stats_direction))
 
     app.add_handler(CommandHandler("start",       cmd_start))
     app.add_handler(CommandHandler("stop",        cmd_stop))

@@ -411,4 +411,39 @@ def get_stats_by_asset() -> list[dict]:
         ]
     except Exception as e:
         logger.error(f"DB get_stats_by_asset error: {e}")
-        return []        
+        return []
+
+def get_stats_by_direction() -> list[dict]:
+    """Restituisce statistiche per direzione LONG e SHORT."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 
+                direction,
+                COUNT(*) as total,
+                SUM(CASE WHEN result = 'tp' THEN 1 ELSE 0 END) as wins,
+                SUM(CASE WHEN result = 'sl' THEN 1 ELSE 0 END) as losses,
+                SUM(CASE WHEN result = 'force_close' THEN 1 ELSE 0 END) as force,
+                ROUND(AVG(pnl_pct)::numeric, 2) as avg_pnl
+            FROM trades
+            WHERE status = 'closed'
+            GROUP BY direction
+            ORDER BY direction
+        """)
+        rows = cur.fetchall()
+        release_db(conn)
+        return [
+            {
+                "direction": r[0],
+                "total":     r[1],
+                "wins":      r[2],
+                "losses":    r[3],
+                "force":     r[4],
+                "avg_pnl":   float(r[5]) if r[5] else 0.0,
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        logger.error(f"DB get_stats_by_direction error: {e}")
+        return []              
