@@ -515,12 +515,16 @@ def run_bot() -> None:
 
         except Exception as e:
             logger.error(f"Errore nel loop principale: {e}", exc_info=True)
-            send_error(f"⚠️ Errore loop: {e}")
+            send_message(
+                f"🚨 Errore critico nel loop\n"
+                f"Errore: {str(e)[:200]}\n"
+                f"Il bot continua a girare..."
+            )
 
         time.sleep(30)   # pausa 30 secondi tra ogni ciclo
 
     logger.info("=== BOT FERMATO ===")
-    send_message("🔴 Bot fermato")
+    send_message("🚨 Bot fermato inaspettatamente — verifica su Railway!")
 
 
 def stop_bot() -> None:
