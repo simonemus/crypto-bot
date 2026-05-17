@@ -26,7 +26,15 @@ def get_pool():
     return _pool
 
 def get_db():
-    return get_pool().getconn()
+    conn = get_pool().getconn()
+    try:
+        # Verifica che la connessione sia ancora attiva
+        conn.cursor().execute("SELECT 1")
+    except Exception:
+        # Connessione morta — ne crea una nuova
+        get_pool().putconn(conn, close=True)
+        conn = get_pool().getconn()
+    return conn
 
 def release_db(conn):
     get_pool().putconn(conn)
