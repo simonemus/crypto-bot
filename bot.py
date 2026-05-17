@@ -20,6 +20,7 @@ from binance_api import (
     get_balance_usdt, get_ticker_price,
     _update_sl_order, check_signal_decay,
     set_leverage_all, has_open_position,
+    get_exchange_with_retry,
 )
 from telegram_bot import send_message, send_error
 from database import (
@@ -501,7 +502,7 @@ def run_bot() -> None:
     logger.info("=== BOT AVVIATO ===")
     send_message("🟢 Bot avviato")
 
-    exchange = get_exchange()
+    exchange = get_exchange_with_retry()
     set_leverage_all(exchange, config.SYMBOLS, leverage=2)
     report_sent_today = False
     force_closed_today = False

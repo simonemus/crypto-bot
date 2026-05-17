@@ -56,6 +56,27 @@ def get_exchange():
     exchange.load_markets()
     return exchange
 
+def get_exchange_with_retry(max_retries: int = 5) -> ccxt.binanceusdm:
+    """
+    Tenta di connettersi a Binance con retry automatico.
+    Attese: 0s, 5s, 15s, 60s, 60s
+    """
+    wait_times = [0, 5, 15, 60, 60]
+    
+    for attempt in range(max_retries):
+        try:
+            exchange = get_exchange()
+            return exchange
+        except Exception as e:
+            if attempt < max_retries - 1:
+                wait = wait_times[attempt]
+                logger.warning(f"Connessione Binance fallita (tentativo {attempt+1}/{max_retries}) — riprovo tra {wait}s: {e}")
+                if wait > 0:
+                    time.sleep(wait)
+            else:
+                logger.error(f"Connessione Binance fallita dopo {max_retries} tentativi: {e}")
+                raise    
+
 
 # ── DATI OHLCV ────────────────────────────────────────────────
 
