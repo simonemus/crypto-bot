@@ -314,4 +314,37 @@ def get_open_trades() -> list[dict]:
         ]
     except Exception as e:
         logger.error(f"DB get_open_trades error: {e}")
-        return []                
+        return []
+
+def get_stats_by_pattern() -> list[dict]:
+    """Restituisce statistiche per pattern candele."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 
+                pattern,
+                COUNT(*) as total,
+                SUM(CASE WHEN result = 'tp' THEN 1 ELSE 0 END) as wins,
+                SUM(CASE WHEN result = 'sl' THEN 1 ELSE 0 END) as losses,
+                SUM(CASE WHEN result = 'force_close' THEN 1 ELSE 0 END) as force
+            FROM trades
+            WHERE status = 'closed' AND pattern IS NOT NULL
+            GROUP BY pattern
+            ORDER BY total DESC
+        """)
+        rows = cur.fetchall()
+        release_db(conn)
+        return [
+            {
+                "pattern": r[0],
+                "total":   r[1],
+                "wins":    r[2],
+                "losses":  r[3],
+                "force":   r[4],
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        logger.error(f"DB get_stats_by_pattern error: {e}")
+        return []

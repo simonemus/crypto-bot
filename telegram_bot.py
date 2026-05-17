@@ -241,6 +241,28 @@ async def cmd_report_all(update, ctx):
     msg = _format_report(trades, "Report totale")
     await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
 
+async def cmd_stats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/stats — Statistiche winrate per pattern candele."""
+    from database import get_stats_by_pattern
+    stats = get_stats_by_pattern()
+
+    if not stats:
+        await update.message.reply_text("Nessun dato disponibile ancora.")
+        return
+
+    lines = ["📊 Statistiche per pattern\n"]
+    for s in stats:
+        total = s["total"]
+        wins  = s["wins"]
+        winrate = round(wins / total * 100, 1) if total else 0
+        lines.append(
+            f"🕯 {s['pattern']}\n"
+            f"Trade: {total} | Win: {wins} | Loss: {s['losses']} | Force: {s['force']}\n"
+            f"Win rate: {winrate}%\n"
+        )
+
+    await update.message.reply_text("\n".join(lines))    
+
 
 async def cmd_equity(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/equity — Curva equity degli ultimi 30 giorni."""
@@ -375,6 +397,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 def start_telegram_bot() -> None:
     app = ApplicationBuilder().token(config.TELEGRAM_BOT_TOKEN).build()
+    app.add_handler(CommandHandler("stats", cmd_stats))
 
     app.add_handler(CommandHandler("start",       cmd_start))
     app.add_handler(CommandHandler("stop",        cmd_stop))
