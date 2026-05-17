@@ -13,10 +13,14 @@ _pool = None
 def get_pool():
     global _pool
     if _pool is None:
-        _pool = pool.SimpleConnectionPool(
+        _pool = pool.ThreadedConnectionPool(
             minconn=2,
             maxconn=10,
-            dsn=DATABASE_URL
+            dsn=DATABASE_URL,
+            keepalives=1,
+            keepalives_idle=30,
+            keepalives_interval=10,
+            keepalives_count=5
         )
         logger.info("Connection pool inizializzato")
     return _pool
