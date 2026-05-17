@@ -26,6 +26,7 @@ from database import (
     log_equity, get_config_param, set_config_param,
     get_daily_trade_count, get_open_trade,
     save_breakout, load_breakouts, clear_breakout, clear_all_breakouts,
+    get_open_trades,
 )
 
 # ── LOGGING ───────────────────────────────────────────────────
@@ -446,6 +447,20 @@ def run_bot() -> None:
     BOT_RUNNING = True
     breakout_seen = load_breakouts()
     logger.info(f"Breakout caricati dal DB: {breakout_seen}")
+
+    # Recupero trade aperti dopo riavvio
+    trades_db = get_open_trades()
+    if trades_db:
+        for t in trades_db:
+            symbol = t["symbol"]
+            if symbol not in open_trades:
+                open_trades[symbol] = t
+                logger.info(f"Trade recuperato dal DB: {symbol} {t['direction']} entry={t['entry']}")
+                send_message(
+                    f"♻️ Trade recuperato dopo riavvio — {symbol}\n"
+                    f"Direzione: {t['direction'].upper()}\n"
+                    f"Entry: {t['entry']:.4f} | SL: {t['sl']:.4f} | TP: {t['tp']:.4f}"
+                )
 
     logger.info("=== BOT AVVIATO ===")
     send_message("🟢 Bot avviato")

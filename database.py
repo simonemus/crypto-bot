@@ -287,4 +287,31 @@ def clear_all_breakouts():
         conn.commit()
         release_db(conn)
     except Exception as e:
-        logger.error(f"DB clear_all_breakouts error: {e}")        
+        logger.error(f"DB clear_all_breakouts error: {e}")
+
+def get_open_trades() -> list[dict]:
+    """Restituisce tutti i trade con status 'open' dal database."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT symbol, direction, entry, sl, tp, qty, pattern FROM trades WHERE status='open'"
+        )
+        rows = cur.fetchall()
+        release_db(conn)
+        return [
+            {
+                "symbol":    r[0],
+                "direction": r[1],
+                "entry":     float(r[2]),
+                "sl":        float(r[3]),
+                "tp":        float(r[4]),
+                "qty":       float(r[5]),
+                "pattern":   r[6],
+                "atr":       0.0,  # ATR non salvato, useremo 0
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        logger.error(f"DB get_open_trades error: {e}")
+        return []                
