@@ -284,14 +284,16 @@ async def cmd_stats_asset(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text("Nessun dato disponibile ancora.")
         return
 
-    # Trova asset con winrate più alto
+    # Trova asset con winrate più alto, in parità vince PnL medio più alto
     best_asset = None
     best_winrate = -1
+    best_pnl = -9999
     for s in stats:
         if s["total"] > 0:
             wr = s["wins"] / s["total"] * 100
-            if wr > best_winrate:
+            if wr > best_winrate or (wr == best_winrate and s["avg_pnl"] > best_pnl):
                 best_winrate = wr
+                best_pnl = s["avg_pnl"]
                 best_asset = s["symbol"]
 
     lines = ["📊 Statistiche per asset\n"]
