@@ -185,8 +185,18 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
 
         # --- Apertura ordine market ---
         side = "buy" if direction == "long" else "sell"
-        order = place_market_order(exchange, symbol, side, qty)
-        logger.info(f"Ordine aperto: {order}")
+        try:
+            order = place_market_order(exchange, symbol, side, qty)
+            logger.info(f"Ordine aperto: {order}")
+        except Exception as order_err:
+            logger.error(f"Errore apertura ordine {symbol}: {order_err}")
+            # Verifica se la posizione è stata aperta su Binance
+            if has_open_position(exchange, symbol):
+                logger.info(f"{symbol} — posizione aperta su Binance nonostante errore, continuo")
+                order = {"id": None}
+            else:
+                logger.info(f"{symbol} — posizione non aperta su Binance, skip")
+                return
 
         # --- OCO per SL/TP ---
         oco_side = "sell" if direction == "long" else "buy"
