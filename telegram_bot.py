@@ -383,6 +383,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "/reportmonth — Report ultimi 30 giorni\n"
         "/reportall — Report totale\n"
         "/equity — Equity ultimi 30 giorni\n\n"
+        "/stats — Statistiche winrate per pattern\n"
         "⚙️ *Parametri*\n"
         "/parametri — Parametri correnti\n"
         "/set rr 2.5 — Modifica il Risk/Reward\n\n"
