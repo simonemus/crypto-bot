@@ -196,29 +196,112 @@ def is_doji(row) -> bool:
     """Doji: corpo molto piccolo rispetto al prezzo."""
     body = _body(row)
     price = row["close"]
-    return body / price <= 0.001    
+    return body / price <= 0.001
+
+def is_evening_star(prev2, prev1, curr) -> bool:
+    """
+    Evening Star (3 candele) — segnale SHORT:
+    1. Candela verde grande
+    2. Candela piccola (doji o corpo piccolo)
+    3. Candela rossa che chiude oltre il 50% della prima
+    """
+    if "bearish_engulfing" not in PATTERNS_ENABLED:
+        return False
+    # Candela 1: verde grande
+    c1_bullish = prev2["close"] > prev2["open"]
+    c1_body = _body(prev2)
+    # Candela 2: corpo piccolo
+    c2_body = _body(prev1)
+    c2_small = c2_body <= c1_body * 0.3
+    # Candela 3: rossa che chiude oltre il 50% della prima
+    c3_bearish = curr["close"] < curr["open"]
+    c3_closes_below = curr["close"] < (prev2["open"] + prev2["close"]) / 2
+    return c1_bullish and c2_small and c3_bearish and c3_closes_below
+
+
+def is_morning_star(prev2, prev1, curr) -> bool:
+    """
+    Morning Star (3 candele) — segnale LONG:
+    1. Candela rossa grande
+    2. Candela piccola (doji o corpo piccolo)
+    3. Candela verde che chiude oltre il 50% della prima
+    """
+    if "bullish_engulfing" not in PATTERNS_ENABLED:
+        return False
+    # Candela 1: rossa grande
+    c1_bearish = prev2["close"] < prev2["open"]
+    c1_body = _body(prev2)
+    # Candela 2: corpo piccolo
+    c2_body = _body(prev1)
+    c2_small = c2_body <= c1_body * 0.3
+    # Candela 3: verde che chiude oltre il 50% della prima
+    c3_bullish = curr["close"] > curr["open"]
+    c3_closes_above = curr["close"] > (prev2["open"] + prev2["close"]) / 2
+    return c1_bearish and c2_small and c3_bullish and c3_closes_above
+
+
+def is_dark_cloud_cover(prev, curr) -> bool:
+    """
+    Dark Cloud Cover (2 candele) — segnale SHORT:
+    1. Candela verde grande
+    2. Candela rossa che apre sopra il massimo della verde
+       e chiude oltre il 50% del corpo della verde
+    """
+    if "bearish_engulfing" not in PATTERNS_ENABLED:
+        return False
+    c1_bullish = prev["close"] > prev["open"]
+    c1_body = _body(prev)
+    c2_bearish = curr["close"] < curr["open"]
+    c2_opens_above = curr["open"] > prev["high"]
+    c2_closes_below_midpoint = curr["close"] < (prev["open"] + prev["close"]) / 2
+    return c1_bullish and c2_bearish and c2_opens_above and c2_closes_below_midpoint
+
+
+def is_piercing_line(prev, curr) -> bool:
+    """
+    Piercing Line (2 candele) — segnale LONG:
+    1. Candela rossa grande
+    2. Candela verde che apre sotto il minimo della rossa
+       e chiude oltre il 50% del corpo della rossa
+    """
+    if "bullish_engulfing" not in PATTERNS_ENABLED:
+        return False
+    c1_bearish = prev["close"] < prev["open"]
+    c2_bullish = curr["close"] > curr["open"]
+    c2_opens_below = curr["open"] < prev["low"]
+    c2_closes_above_midpoint = curr["close"] > (prev["open"] + prev["close"]) / 2
+    return c1_bearish and c2_bullish and c2_opens_below and c2_closes_above_midpoint        
 
 def detect_pattern(df: pd.DataFrame, direction: str) -> str | None:
     """
-    Controlla le ultime due candele chiuse.
+    Controlla le ultime tre candele chiuse.
     Restituisce il nome del pattern trovato o None.
     direction: 'long' | 'short'
     """
     curr = df.iloc[-2]
     prev = df.iloc[-3]
+    prev2 = df.iloc[-4]
 
     if direction == "long":
-        if is_hammer(curr):
-            return "hammer"
+        if is_morning_star(prev2, prev, curr):
+            return "morning_star"
+        if is_piercing_line(prev, curr):
+            return "piercing_line"
         if is_bullish_engulfing(prev, curr):
             return "bullish_engulfing"
+        if is_hammer(curr):
+            return "hammer"
         if is_doji(curr):
             return "doji"
     else:
-        if is_shooting_star(curr):
-            return "shooting_star"
+        if is_evening_star(prev2, prev, curr):
+            return "evening_star"
+        if is_dark_cloud_cover(prev, curr):
+            return "dark_cloud_cover"
         if is_bearish_engulfing(prev, curr):
             return "bearish_engulfing"
+        if is_shooting_star(curr):
+            return "shooting_star"
         if is_doji(curr):
             return "doji"
 
