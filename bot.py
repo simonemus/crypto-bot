@@ -361,9 +361,19 @@ def update_trailing_stop(exchange, symbol: str, trade: dict) -> None:
                 # Fase 2 — Trailing
                 new_sl = state["highest"] - trailing_dist
                 if new_sl > trade["sl"]:
+                    old_sl = trade["sl"]
                     logger.info(f"{symbol} TRAILING — SL aggiornato → {new_sl:.4f}")
                     _update_sl_order(exchange, symbol, new_sl, trade["qty"], direction)
                     trade["sl"] = new_sl
+                    price = get_ticker_price(exchange, symbol)
+                    pnl_pct = round((price - trade["entry"]) / trade["entry"] * 100, 2)
+                    send_message(
+                        f"📈 Trailing Stop aggiornato — {symbol} LONG\n"
+                        f"Nuovo SL: {new_sl:.4f}\n"
+                        f"Precedente SL: {old_sl:.4f}\n"
+                        f"Massimo raggiunto: {state['highest']:.4f}\n"
+                        f"PnL attuale: +{pnl_pct}%"
+                    )
 
         else:  # short
             # Aggiorna il minimo raggiunto
@@ -383,9 +393,19 @@ def update_trailing_stop(exchange, symbol: str, trade: dict) -> None:
                 # Fase 2 — Trailing
                 new_sl = state["lowest"] + trailing_dist
                 if new_sl < trade["sl"]:
+                    old_sl = trade["sl"]
                     logger.info(f"{symbol} TRAILING — SL aggiornato → {new_sl:.4f}")
                     _update_sl_order(exchange, symbol, new_sl, trade["qty"], direction)
                     trade["sl"] = new_sl
+                    price = get_ticker_price(exchange, symbol)
+                    pnl_pct = round((trade["entry"] - price) / trade["entry"] * 100, 2)
+                    send_message(
+                        f"📉 Trailing Stop aggiornato — {symbol} SHORT\n"
+                        f"Nuovo SL: {new_sl:.4f}\n"
+                        f"Precedente SL: {old_sl:.4f}\n"
+                        f"Minimo raggiunto: {state['lowest']:.4f}\n"
+                        f"PnL attuale: +{pnl_pct}%"
+                    )
 
     except Exception as e:
         logger.error(f"Errore trailing stop {symbol}: {e}")            
