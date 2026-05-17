@@ -217,8 +217,10 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
         del breakout_seen[symbol]
         clear_breakout(symbol)
 
-        # --- DB + notifica ---
-        log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=atr_val)
+        # Calcola e salva il buffer dinamico usato al momento del breakout
+        atr_pct = atr_val / entry
+        buf_used = round(max(0.0020, atr_pct * 1.5) * 100, 4)
+        log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=atr_val, breakout_buffer=buf_used)
         send_message(
             f"📈 Ordine aperto — {symbol}\n"
             f"Direzione: {direction.upper()}\n"

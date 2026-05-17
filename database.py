@@ -58,6 +58,7 @@ def init_db():
                 exit_price numeric,
                 pnl_pct numeric,
                 atr numeric,
+                breakout_buffer numeric,
                 date date,
                 opened_at timestamptz default now(),
                 closed_at timestamptz
@@ -79,6 +80,7 @@ def init_db():
             ON CONFLICT (key) DO NOTHING;
 
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS atr numeric;
+            ALTER TABLE trades ADD COLUMN IF NOT EXISTS breakout_buffer numeric;
         """)
         conn.commit()
         release_db(conn)
@@ -105,13 +107,13 @@ def log_signal(symbol, direction, pdh, pdl):
     except Exception as e:
         logger.error(f"DB log_signal error: {e}")
 
-def log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=0.0):
+def log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=0.0, breakout_buffer=0.0):
     try:
         conn = get_db()
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO trades (symbol, direction, entry, sl, tp, qty, pattern, status, date, opened_at, atr) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (symbol, direction, entry, sl, tp, qty, pattern, "open", _today_str(), _now_iso(), atr)
+            "INSERT INTO trades (symbol, direction, entry, sl, tp, qty, pattern, status, date, opened_at, atr, breakout_buffer) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (symbol, direction, entry, sl, tp, qty, pattern, "open", _today_str(), _now_iso(), atr, breakout_buffer)
         )
         conn.commit()
         release_db(conn)
