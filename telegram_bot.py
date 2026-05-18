@@ -181,11 +181,18 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     total     = len(trades)
     winrate   = round(len(wins) / total * 100, 1) if total else 0
 
+    pnl_total = round(sum(t.get("pnl_pct", 0) for t in trades), 2)
+    pnl_medio = round(pnl_total / total, 2) if total else 0
+    sign_total = "+" if pnl_total >= 0 else ""
+    sign_medio = "+" if pnl_medio >= 0 else ""
+
     lines = [
         f"📊 *Report giornaliero*",
         f"Trade totali: {total}",
         f"✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚖️ BE: {len(breakeven)}",
         f"Win rate: {winrate}%",
+        f"PnL medio: {sign_medio}{pnl_medio}%",
+        f"PnL totale: {sign_total}{pnl_total}%",
     ]
     for t in trades:
         risultato = t.get("result") or "aperto"
@@ -205,14 +212,17 @@ def _format_report(trades, titolo):
     winrate   = round(len(wins) / total * 100, 1) if total else 0
 
     pnl_total = round(sum(t.get("pnl_pct", 0) for t in trades), 2)
-    sign = "+" if pnl_total >= 0 else ""
+    pnl_medio = round(pnl_total / total, 2) if total else 0
+    sign_total = "+" if pnl_total >= 0 else ""
+    sign_medio = "+" if pnl_medio >= 0 else ""
 
     lines = [
         f"📊 *{titolo}*",
         f"Trade totali: {total}",
         f"✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚖️ BE: {len(breakeven)}",
         f"Win rate: {winrate}%",
-        f"PnL totale: {sign}{pnl_total}%",
+        f"PnL medio: {sign_medio}{pnl_medio}%",
+        f"PnL totale: {sign_total}{pnl_total}%",
     ]
     return "\n".join(lines)
 
