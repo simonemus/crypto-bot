@@ -369,7 +369,7 @@ async def cmd_stats_hour(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
                 best_pnl = s["avg_pnl"]
                 best_hour = s["hour"]
 
-    lines = ["📊 Statistiche per ora del giorno (UTC)\n"]
+    lines = ["📊 Statistiche per ora del giorno (ora italiana)\n"]
     for s in stats:
         total = s["total"]
         wins  = s["wins"]
@@ -378,8 +378,9 @@ async def cmd_stats_hour(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
         wr_str = f"{winrate}%" if total > 0 else "N/D"
         avg_pnl = s["avg_pnl"]
         sign = "+" if avg_pnl >= 0 else ""
+        italian_hour = s['hour'] + 2
         lines.append(
-            f"🕐 {s['hour']:02d}:00-{s['hour']+1:02d}:00{star}\n"
+            f"🕐 {italian_hour:02d}:00-{italian_hour+1:02d}:00{star}\n"
             f"Trade: {total} | Win: {wins} | Loss: {s['losses']} | BE: {s['breakeven']}\n"
             f"Win rate: {wr_str} | PnL medio: {sign}{avg_pnl}%\n"
         )

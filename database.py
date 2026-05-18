@@ -523,7 +523,7 @@ def get_stats_by_hour() -> list[dict]:
         db_data = {int(r[0]): {"total": r[1], "wins": r[2], "losses": r[3], "breakeven": r[4], "avg_pnl": float(r[5]) if r[5] else 0.0} for r in rows}
 
         result = []
-        for hour in range(7, 21):
+        for hour in range(7, 20):
             if hour in db_data:
                 d = db_data[hour]
                 result.append({
