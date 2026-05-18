@@ -497,4 +497,54 @@ def clear_decay_cooldown(symbol: str) -> None:
         conn.commit()
         release_db(conn)
     except Exception as e:
-        logger.error(f"DB clear_decay_cooldown error: {e}")                      
+        logger.error(f"DB clear_decay_cooldown error: {e}")
+
+def get_stats_by_hour() -> list[dict]:
+    """Restituisce statistiche per ora del giorno (sessione 7:00-20:00 UTC)."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 
+                EXTRACT(HOUR FROM opened_at) as hour,
+                COUNT(*) as total,
+                SUM(CASE WHEN result = 'tp' THEN 1 ELSE 0 END) as wins,
+                SUM(CASE WHEN result = 'sl' THEN 1 ELSE 0 END) as losses,
+                SUM(CASE WHEN result = 'breakeven' THEN 1 ELSE 0 END) as breakeven,
+                ROUND(AVG(pnl_pct)::numeric, 2) as avg_pnl
+            FROM trades
+            WHERE status = 'closed'
+            GROUP BY hour
+            ORDER BY hour
+        """)
+        rows = cur.fetchall()
+        release_db(conn)
+
+        db_data = {int(r[0]): {"total": r[1], "wins": r[2], "losses": r[3], "breakeven": r[4], "avg_pnl": float(r[5]) if r[5] else 0.0} for r in rows}
+
+        result = []
+        for hour in range(7, 21):
+            if hour in db_data:
+                d = db_data[hour]
+                result.append({
+                    "hour":      hour,
+                    "total":     d["total"],
+                    "wins":      d["wins"],
+                    "losses":    d["losses"],
+                    "breakeven": d["breakeven"],
+                    "avg_pnl":   d["avg_pnl"],
+                })
+            else:
+                result.append({
+                    "hour":      hour,
+                    "total":     0,
+                    "wins":      0,
+                    "losses":    0,
+                    "breakeven": 0,
+                    "avg_pnl":   0.0,
+                })
+
+        return result
+    except Exception as e:
+        logger.error(f"DB get_stats_by_hour error: {e}")
+        return []                              

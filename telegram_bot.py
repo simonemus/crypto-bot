@@ -346,7 +346,45 @@ async def cmd_stats_direction(update: Update, ctx: ContextTypes.DEFAULT_TYPE) ->
             f"Win rate: {wr_str} | PnL medio: {sign}{avg_pnl}%\n"
         )
 
-    await update.message.reply_text("\n".join(lines))            
+    await update.message.reply_text("\n".join(lines))
+
+async def cmd_stats_hour(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/statshour — Statistiche winrate per ora del giorno."""
+    from database import get_stats_by_hour
+    stats = get_stats_by_hour()
+
+    if not stats:
+        await update.message.reply_text("Nessun dato disponibile ancora.")
+        return
+
+    # Trova ora con winrate più alto, in parità vince PnL medio più alto
+    best_hour = None
+    best_winrate = -1
+    best_pnl = -9999
+    for s in stats:
+        if s["total"] > 0:
+            wr = s["wins"] / s["total"] * 100
+            if wr > best_winrate or (wr == best_winrate and s["avg_pnl"] > best_pnl):
+                best_winrate = wr
+                best_pnl = s["avg_pnl"]
+                best_hour = s["hour"]
+
+    lines = ["📊 Statistiche per ora del giorno (UTC)\n"]
+    for s in stats:
+        total = s["total"]
+        wins  = s["wins"]
+        winrate = round(wins / total * 100, 1) if total else 0
+        star = " ⭐" if s["hour"] == best_hour else ""
+        wr_str = f"{winrate}%" if total > 0 else "N/D"
+        avg_pnl = s["avg_pnl"]
+        sign = "+" if avg_pnl >= 0 else ""
+        lines.append(
+            f"🕐 {s['hour']:02d}:00-{s['hour']+1:02d}:00{star}\n"
+            f"Trade: {total} | Win: {wins} | Loss: {s['losses']} | BE: {s['breakeven']}\n"
+            f"Win rate: {wr_str} | PnL medio: {sign}{avg_pnl}%\n"
+        )
+
+    await update.message.reply_text("\n".join(lines))
 
 
 async def cmd_equity(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -470,7 +508,8 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "/equity — Equity ultimi 30 giorni\n"
         "/stats — Statistiche winrate per pattern\n"
         "/statsasset — Statistiche winrate per asset\n"
-        "/statsdirection — Statistiche winrate per direzione\n\n"
+        "/statsdirection — Statistiche winrate per direzione\n"
+        "/statshour — Statistiche winrate per ora del giorno\n\n"
         "⚙️ *Parametri*\n"
         "/parametri — Parametri correnti\n"
         "/set rr 2.5 — Modifica il Risk/Reward\n\n"
@@ -488,6 +527,7 @@ def start_telegram_bot() -> None:
     app.add_handler(CommandHandler("stats", cmd_stats))
     app.add_handler(CommandHandler("statsasset", cmd_stats_asset))
     app.add_handler(CommandHandler("statsdirection", cmd_stats_direction))
+    app.add_handler(CommandHandler("statshour", cmd_stats_hour))
 
     app.add_handler(CommandHandler("start",       cmd_start))
     app.add_handler(CommandHandler("stop",        cmd_stop))
