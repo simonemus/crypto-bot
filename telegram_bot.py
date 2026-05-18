@@ -177,7 +177,6 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     trades    = get_today_trades()
     wins      = [t for t in trades if t.get("result") == "tp"]
     losses    = [t for t in trades if t.get("result") == "sl"]
-    force     = [t for t in trades if t.get("result") == "force_close"]
     breakeven = [t for t in trades if t.get("result") == "breakeven"]
     total     = len(trades)
     winrate   = round(len(wins) / total * 100, 1) if total else 0
@@ -185,12 +184,12 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     lines = [
         f"📊 *Report giornaliero*",
         f"Trade totali: {total}",
-        f"✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚠️ Force: {len(force)} | ⚖️ BE: {len(breakeven)}",
+        f"✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚖️ BE: {len(breakeven)}",
         f"Win rate: {winrate}%",
     ]
     for t in trades:
         risultato = t.get("result") or "aperto"
-        emoji = {"tp": "✅", "sl": "🔴", "force_close": "⚠️", "breakeven": "⚖️"}.get(risultato, "•")
+        emoji = {"tp": "✅", "sl": "🔴", "breakeven": "⚖️"}.get(risultato, "•")
         lines.append(
             f"{emoji} {t['symbol']} {t.get('direction','').upper()} "
             f"— {risultato}"
@@ -201,7 +200,6 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 def _format_report(trades, titolo):
     wins      = [t for t in trades if t.get("result") == "tp"]
     losses    = [t for t in trades if t.get("result") == "sl"]
-    force     = [t for t in trades if t.get("result") == "force_close"]
     breakeven = [t for t in trades if t.get("result") == "breakeven"]
     total     = len(trades)
     winrate   = round(len(wins) / total * 100, 1) if total else 0
@@ -212,7 +210,7 @@ def _format_report(trades, titolo):
     lines = [
         f"📊 *{titolo}*",
         f"Trade totali: {total}",
-        f"✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚠️ Force: {len(force)} | ⚖️ BE: {len(breakeven)}",
+        f"✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚖️ BE: {len(breakeven)}",
         f"Win rate: {winrate}%",
         f"PnL totale: {sign}{pnl_total}%",
     ]
@@ -267,7 +265,7 @@ async def cmd_stats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         wr_str = f"{winrate}%" if total > 0 else "N/D"
         lines.append(
             f"🕯 {s['pattern']}{star}\n"
-            f"Trade: {total} | Win: {wins} | Loss: {s['losses']} | Force: {s['force']} | BE: {s['breakeven']}\n"
+            f"Trade: {total} | Win: {wins} | Loss: {s['losses']} | BE: {s['breakeven']}\n"
             f"Win rate: {wr_str}\n"
         )
 
@@ -305,7 +303,7 @@ async def cmd_stats_asset(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         sign = "+" if avg_pnl >= 0 else ""
         lines.append(
             f"💰 {s['symbol']}{star}\n"
-            f"Trade: {total} | Win: {wins} | Loss: {s['losses']} | Force: {s['force']} | BE: {s['breakeven']}\n"
+            f"Trade: {total} | Win: {wins} | Loss: {s['losses']} | BE: {s['breakeven']}\n"
             f"Win rate: {wr_str} | PnL medio: {sign}{avg_pnl}%\n"
         )
 
@@ -344,7 +342,7 @@ async def cmd_stats_direction(update: Update, ctx: ContextTypes.DEFAULT_TYPE) ->
         emoji = "📈" if s["direction"] == "long" else "📉"
         lines.append(
             f"{emoji} {s['direction'].upper()}{star}\n"
-            f"Trade: {total} | Win: {wins} | Loss: {s['losses']} | Force: {s['force']} | BE: {s['breakeven']}\n"
+            f"Trade: {total} | Win: {wins} | Loss: {s['losses']} | BE: {s['breakeven']}\n"
             f"Win rate: {wr_str} | PnL medio: {sign}{avg_pnl}%\n"
         )
 

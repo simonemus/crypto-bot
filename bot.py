@@ -481,7 +481,7 @@ def send_evening_report(exchange) -> None:
 
         msg = (
             f"📊 *Report serale — {now_utc().strftime('%d/%m/%Y')}*\n"
-            f"Trade oggi: {total} | ✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚠️ Force: {len(force)} | ⚖️ BE: {len(breakeven)}\n"
+            f"Trade oggi: {total} | ✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚖️ BE: {len(breakeven)}\n"
             f"Win rate: {winrate}%\n"
             f"Equity attuale: `{balance:.2f} USDT`"
         )
