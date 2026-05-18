@@ -405,21 +405,21 @@ def calc_sl_tp(entry: float, direction: str, atr: float, rr: float) -> tuple[flo
 
 
 def calc_quantity(exchange, symbol: str, entry: float,
-                  sl: float, capital_usdt: float, risk_pct: float) -> float:
+                  sl: float, capital_usdt: float, risk_pct: float,
+                  leverage: int = 2) -> float:
     """
-    Calcola la quantità da acquistare/vendere in base al rischio %.
-    Limita la quantità al margine disponibile con la leva impostata.
+    Calcola la quantità in base al rischio % e alla leva.
+    Rischio 1% = margine impegnato 1% del capitale
+    Con leva 2x: valore posizione = margine × leva
     """
-    risk_usdt = capital_usdt * (risk_pct / 100)
-    sl_dist   = abs(entry - sl)
-    if sl_dist == 0:
-        return 0.0
-    qty = risk_usdt / sl_dist
+    # Margine impegnato = risk_pct% del capitale
+    margin = capital_usdt * (risk_pct / 100)
 
-    # Limita al margine disponibile (capital / 2 per leva 2x)
-    max_position_value = capital_usdt * 2  # leva 2x
-    max_qty = max_position_value / entry
-    qty = min(qty, max_qty * 0.95)  # 95% del massimo per sicurezza
+    # Valore posizione = margine × leva
+    position_value = margin * leverage
+
+    # Quantità = valore posizione / prezzo entry
+    qty = position_value / entry
 
     # Arrotonda alla precisione del mercato
     qty = float(exchange.amount_to_precision(symbol, qty))
