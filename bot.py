@@ -29,6 +29,7 @@ from database import (
     get_daily_trade_count, get_open_trade,
     save_breakout, load_breakouts, clear_breakout, clear_all_breakouts,
     get_open_trades,
+    save_decay_cooldown, load_decay_cooldowns, clear_decay_cooldown,
 )
 
 # ── LOGGING ───────────────────────────────────────────────────
@@ -102,7 +103,8 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
             logger.info(f"{symbol} — cooldown attivo, riprendo tra {remaining} minuti")
             return
         else:
-            del decay_cooldown[symbol]    
+            del decay_cooldown[symbol]
+            clear_decay_cooldown(symbol)    
 
     # Verifica posizioni aperte su Binance
     if has_open_position(exchange, symbol):
@@ -151,6 +153,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
             del breakout_seen[symbol]
             clear_breakout(symbol)
             decay_cooldown[symbol] = now_utc()
+            save_decay_cooldown(symbol)
             send_message(f"⚠️ Segnale decaduto — {symbol}\nIl prezzo si è allontanato troppo dal livello rotto.")
             return
 
@@ -511,6 +514,8 @@ def run_bot() -> None:
     BOT_RUNNING = True
     breakout_seen = load_breakouts()
     logger.info(f"Breakout caricati dal DB: {breakout_seen}")
+    decay_cooldown = load_decay_cooldowns()
+    logger.info(f"Cooldown caricati dal DB: {decay_cooldown}")
 
     # Recupero trade aperti dopo riavvio
     trades_db = get_open_trades()

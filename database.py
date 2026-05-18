@@ -453,4 +453,48 @@ def get_stats_by_direction() -> list[dict]:
         ]
     except Exception as e:
         logger.error(f"DB get_stats_by_direction error: {e}")
-        return []              
+        return []
+
+def save_decay_cooldown(symbol: str) -> None:
+    """Salva il timestamp del cooldown decadimento nel database."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO config (key, value, updated_at) VALUES (%s,%s,%s) ON CONFLICT (key) DO UPDATE SET value=%s, updated_at=%s",
+            (f"cooldown_{symbol}", _now_iso(), _now_iso(), _now_iso(), _now_iso())
+        )
+        conn.commit()
+        release_db(conn)
+    except Exception as e:
+        logger.error(f"DB save_decay_cooldown error: {e}")
+
+def load_decay_cooldowns() -> dict:
+    """Carica i cooldown attivi dal database."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT key, value FROM config WHERE key LIKE 'cooldown_%'")
+        rows = cur.fetchall()
+        release_db(conn)
+        result = {}
+        for r in rows:
+            symbol = r[0].replace("cooldown_", "")
+            from datetime import datetime, timezone
+            dt = datetime.fromisoformat(r[1])
+            result[symbol] = dt
+        return result
+    except Exception as e:
+        logger.error(f"DB load_decay_cooldowns error: {e}")
+        return {}
+
+def clear_decay_cooldown(symbol: str) -> None:
+    """Rimuove il cooldown dal database."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM config WHERE key=%s", (f"cooldown_{symbol}",))
+        conn.commit()
+        release_db(conn)
+    except Exception as e:
+        logger.error(f"DB clear_decay_cooldown error: {e}")                      
