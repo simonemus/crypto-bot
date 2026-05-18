@@ -510,7 +510,7 @@ def send_evening_report(exchange) -> None:
 
 def run_bot() -> None:
     """Loop principale del bot — chiama start() da telegram_bot.py."""
-    global BOT_RUNNING, breakout_seen
+    global BOT_RUNNING, breakout_seen, decay_cooldown
     BOT_RUNNING = True
     breakout_seen = load_breakouts()
     logger.info(f"Breakout caricati dal DB: {breakout_seen}")
