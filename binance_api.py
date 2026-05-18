@@ -365,23 +365,21 @@ def check_retest(df_5m: pd.DataFrame, pdh: float, pdl: float, direction: str) ->
 def check_signal_decay(current_price: float, pdh: float, pdl: float, 
                         direction: str, decay_buffer: float) -> bool:
     """
-    Verifica se il segnale è decaduto — il prezzo si è allontanato troppo
-    dal livello rotto rendendo impossibile il retest.
-    Restituisce True se il segnale è decaduto.
-    direction: 'long' | 'short'
-    decay_buffer: percentuale massima di distanza dal livello
+    Verifica se il segnale è decaduto.
+    Decade se il prezzo si allontana troppo dal livello rotto
+    in ENTRAMBE le direzioni — sia contro che a favore.
     """
     buf = decay_buffer / 100
 
     if direction == "long":
-        # Per LONG il prezzo deve essere sopra il PDH
-        # Se scende troppo sotto il PDH il segnale decade
-        distance = (pdh - current_price) / pdh
+        # Decade se scende troppo sotto PDH (breakout falso)
+        # O se sale troppo sopra PDH (retest impossibile)
+        distance = abs(current_price - pdh) / pdh
         return distance > buf
     else:
-        # Per SHORT il prezzo deve essere sotto il PDL
-        # Se sale troppo sopra il PDL il segnale decade
-        distance = (current_price - pdl) / pdl
+        # Decade se risale troppo sopra PDL (breakout falso)
+        # O se scende troppo sotto PDL (retest impossibile)
+        distance = abs(current_price - pdl) / pdl
         return distance > buf    
 
 
