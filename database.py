@@ -341,7 +341,8 @@ def get_stats_by_pattern() -> list[dict]:
                 COUNT(*) as total,
                 SUM(CASE WHEN result = 'tp' THEN 1 ELSE 0 END) as wins,
                 SUM(CASE WHEN result = 'sl' THEN 1 ELSE 0 END) as losses,
-                SUM(CASE WHEN result = 'force_close' THEN 1 ELSE 0 END) as force
+                SUM(CASE WHEN result = 'force_close' THEN 1 ELSE 0 END) as force,
+                SUM(CASE WHEN result = 'breakeven' THEN 1 ELSE 0 END) as breakeven
             FROM trades
             WHERE status = 'closed' AND pattern IS NOT NULL
             GROUP BY pattern
@@ -350,7 +351,7 @@ def get_stats_by_pattern() -> list[dict]:
         release_db(conn)
 
         # Crea dizionario con i dati dal DB
-        db_data = {r[0]: {"total": r[1], "wins": r[2], "losses": r[3], "force": r[4]} for r in rows}
+        db_data = {r[0]: {"total": r[1], "wins": r[2], "losses": r[3], "force": r[4], "breakeven": r[5]} for r in rows}
 
         # Aggiunge tutti i pattern configurati anche se con 0 trade
         result = []
@@ -363,6 +364,7 @@ def get_stats_by_pattern() -> list[dict]:
                     "wins":    d["wins"],
                     "losses":  d["losses"],
                     "force":   d["force"],
+                    "breakeven": d["breakeven"],
                 })
             else:
                 result.append({
@@ -371,6 +373,7 @@ def get_stats_by_pattern() -> list[dict]:
                     "wins":    0,
                     "losses":  0,
                     "force":   0,
+                    "breakeven": 0,
                 })
 
         return sorted(result, key=lambda x: (x["total"]), reverse=True)
@@ -390,6 +393,7 @@ def get_stats_by_asset() -> list[dict]:
                 SUM(CASE WHEN result = 'tp' THEN 1 ELSE 0 END) as wins,
                 SUM(CASE WHEN result = 'sl' THEN 1 ELSE 0 END) as losses,
                 SUM(CASE WHEN result = 'force_close' THEN 1 ELSE 0 END) as force,
+                SUM(CASE WHEN result = 'breakeven' THEN 1 ELSE 0 END) as breakeven,
                 ROUND(AVG(pnl_pct)::numeric, 2) as avg_pnl
             FROM trades
             WHERE status = 'closed'
@@ -405,7 +409,8 @@ def get_stats_by_asset() -> list[dict]:
                 "wins":    r[2],
                 "losses":  r[3],
                 "force":   r[4],
-                "avg_pnl": float(r[5]) if r[5] else 0.0,
+                "breakeven": r[5],
+                "avg_pnl": float(r[6]) if r[6] else 0.0,
             }
             for r in rows
         ]
@@ -425,6 +430,7 @@ def get_stats_by_direction() -> list[dict]:
                 SUM(CASE WHEN result = 'tp' THEN 1 ELSE 0 END) as wins,
                 SUM(CASE WHEN result = 'sl' THEN 1 ELSE 0 END) as losses,
                 SUM(CASE WHEN result = 'force_close' THEN 1 ELSE 0 END) as force,
+                SUM(CASE WHEN result = 'breakeven' THEN 1 ELSE 0 END) as breakeven,
                 ROUND(AVG(pnl_pct)::numeric, 2) as avg_pnl
             FROM trades
             WHERE status = 'closed'
@@ -440,7 +446,8 @@ def get_stats_by_direction() -> list[dict]:
                 "wins":      r[2],
                 "losses":    r[3],
                 "force":     r[4],
-                "avg_pnl":   float(r[5]) if r[5] else 0.0,
+                "breakeven": r[5],
+                "avg_pnl":   float(r[6]) if r[6] else 0.0,
             }
             for r in rows
         ]
