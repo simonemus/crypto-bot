@@ -553,6 +553,10 @@ def run_bot() -> None:
                 force_closed_today = False
                 heartbeat_sent_today = False
 
+                decay_cooldown = {}
+                for sym in list(config.SYMBOLS):
+                    clear_decay_cooldown(sym)
+
             # Notifica PnL oraria
             if open_trades:
                 now = now_utc()
