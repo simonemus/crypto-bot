@@ -536,13 +536,17 @@ def _update_sl_order(exchange, symbol: str, new_sl: float, qty: float, direction
     try:
         side = "buy" if direction == "short" else "sell"
 
-        # Cancella TUTTI gli ordini condizionali aperti su quel simbolo
-        open_orders = exchange.fetch_open_orders(symbol)
-        for order in open_orders:
-            order_type = str(order.get("type", "")).lower()
-            if "stop" in order_type and "take" not in order_type:
-                exchange.cancel_order(order["id"], symbol)
-                logger.info(f"Vecchio SL cancellato: {order['id']} tipo={order_type}")
+        # Usa l'endpoint specifico per ordini aperti futures
+        try:
+            open_orders = exchange.fapiPrivateGetOpenOrders({"symbol": symbol.replace("/", "").replace(":USDT", "")})
+            for order in open_orders:
+                order_type = str(order.get("type", "")).lower()
+                order_id = order.get("orderId")
+                if "stop" in order_type and "take" not in order_type and order_id:
+                    exchange.cancel_order(str(order_id), symbol)
+                    logger.info(f"Vecchio SL cancellato: {order_id} tipo={order_type}")
+        except Exception as fetch_err:
+            logger.warning(f"Errore fetch ordini aperti: {fetch_err}")
 
         # Piazza nuovo STOP_MARKET
         exchange.create_order(
