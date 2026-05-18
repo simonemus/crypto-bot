@@ -52,6 +52,7 @@ open_trades   = {}   # {symbol: {direction, entry, sl, tp, qty, order_id}}
 breakout_seen = {}   # {symbol: direction}  — breakout confermato, attesa retest
 last_pattern_candle = {}   # {symbol: timestamp}  — evita di controllare la stessa candela 5m due volte
 trailing_state = {}       # {symbol: {'breakeven_hit': bool, 'highest': float, 'lowest': float}}
+decay_cooldown = {}       # {symbol: timestamp} — cooldown dopo decadimento segnale
 
 # ── UTILITÀ ORARIO ────────────────────────────────────────────
 
@@ -92,6 +93,14 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
     # Già in posizione → skip
     if symbol in open_trades:
         return
+
+    # Cooldown dopo decadimento — aspetta 15 minuti prima di rilevare nuovo breakout
+    if symbol in decay_cooldown:
+        elapsed = (now_utc() - decay_cooldown[symbol]).seconds
+        if elapsed < 900:  # 15 minuti
+            return
+        else:
+            del decay_cooldown[symbol]    
 
     # Verifica posizioni aperte su Binance
     if has_open_position(exchange, symbol):
@@ -139,6 +148,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
             logger.info(f"{symbol} — segnale decaduto, prezzo troppo lontano dal livello")
             del breakout_seen[symbol]
             clear_breakout(symbol)
+            decay_cooldown[symbol] = now_utc()
             send_message(f"⚠️ Segnale decaduto — {symbol}\nIl prezzo si è allontanato troppo dal livello rotto.")
             return
 
