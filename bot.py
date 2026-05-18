@@ -98,6 +98,8 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
     if symbol in decay_cooldown:
         elapsed = (now_utc() - decay_cooldown[symbol]).seconds
         if elapsed < 900:  # 15 minuti
+            remaining = (900 - elapsed) // 60
+            logger.info(f"{symbol} — cooldown attivo, riprendo tra {remaining} minuti")
             return
         else:
             del decay_cooldown[symbol]    
