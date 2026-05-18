@@ -539,6 +539,7 @@ def _update_sl_order(exchange, symbol: str, new_sl: float, qty: float, direction
         # Usa l'endpoint specifico per ordini aperti futures
         try:
             open_orders = exchange.fapiPrivateGetOpenOrders({"symbol": symbol.replace("/", "").replace(":USDT", "")})
+            logger.info(f"Ordini aperti trovati: {len(open_orders)} — {[o.get('type') for o in open_orders]}")
             for order in open_orders:
                 order_type = str(order.get("type", "")).lower()
                 order_id = order.get("orderId")
