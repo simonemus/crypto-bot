@@ -174,22 +174,23 @@ async def cmd_trade(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/report — Riepilogo trade del giorno corrente."""
-    trades = get_today_trades()
-    wins   = [t for t in trades if t.get("result") == "tp"]
-    losses = [t for t in trades if t.get("result") == "sl"]
-    force  = [t for t in trades if t.get("result") == "force_close"]
-    total  = len(trades)
-    winrate = round(len(wins) / total * 100, 1) if total else 0
+    trades    = get_today_trades()
+    wins      = [t for t in trades if t.get("result") == "tp"]
+    losses    = [t for t in trades if t.get("result") == "sl"]
+    force     = [t for t in trades if t.get("result") == "force_close"]
+    breakeven = [t for t in trades if t.get("result") == "breakeven"]
+    total     = len(trades)
+    winrate   = round(len(wins) / total * 100, 1) if total else 0
 
     lines = [
         f"📊 *Report giornaliero*",
         f"Trade totali: {total}",
-        f"✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚠️ Force: {len(force)}",
+        f"✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚠️ Force: {len(force)} | ⚖️ BE: {len(breakeven)}",
         f"Win rate: {winrate}%",
     ]
     for t in trades:
         risultato = t.get("result") or "aperto"
-        emoji = {"tp": "✅", "sl": "🔴", "force_close": "⚠️"}.get(risultato, "•")
+        emoji = {"tp": "✅", "sl": "🔴", "force_close": "⚠️", "breakeven": "⚖️"}.get(risultato, "•")
         lines.append(
             f"{emoji} {t['symbol']} {t.get('direction','').upper()} "
             f"— {risultato}"
@@ -198,25 +199,22 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("\n".join(lines))
 
 def _format_report(trades, titolo):
-    wins   = [t for t in trades if t.get("result") == "tp"]
-    losses = [t for t in trades if t.get("result") == "sl"]
-    force  = [t for t in trades if t.get("result") == "force_close"]
-    total  = len(trades)
-    winrate = round(len(wins) / total * 100, 1) if total else 0
+    wins      = [t for t in trades if t.get("result") == "tp"]
+    losses    = [t for t in trades if t.get("result") == "sl"]
+    force     = [t for t in trades if t.get("result") == "force_close"]
+    breakeven = [t for t in trades if t.get("result") == "breakeven"]
+    total     = len(trades)
+    winrate   = round(len(wins) / total * 100, 1) if total else 0
 
-    pnl_wins   = sum(t.get("pnl_pct", 0) for t in wins)
-    pnl_losses = sum(t.get("pnl_pct", 0) for t in losses)
-    pnl_force  = sum(t.get("pnl_pct", 0) for t in force)
-    pnl_total  = round(pnl_wins + pnl_losses + pnl_force, 2)
-
+    pnl_total = round(sum(t.get("pnl_pct", 0) for t in trades), 2)
     sign = "+" if pnl_total >= 0 else ""
 
     lines = [
         f"📊 *{titolo}*",
         f"Trade totali: {total}",
-        f"✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚠️ Force: {len(force)}",
+        f"✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚠️ Force: {len(force)} | ⚖️ BE: {len(breakeven)}",
         f"Win rate: {winrate}%",
-        f"PnL totale: `{sign}{pnl_total}%`",
+        f"PnL totale: {sign}{pnl_total}%",
     ]
     return "\n".join(lines)
 

@@ -475,12 +475,13 @@ def send_evening_report(exchange) -> None:
         wins   = [t for t in trades if t.get("result") == "tp"]
         losses = [t for t in trades if t.get("result") == "sl"]
         force  = [t for t in trades if t.get("result") == "force_close"]
+        breakeven = [t for t in trades if t.get("result") == "breakeven"]
         total  = len(trades)
         winrate = round(len(wins) / total * 100, 1) if total else 0
 
         msg = (
             f"📊 *Report serale — {now_utc().strftime('%d/%m/%Y')}*\n"
-            f"Trade oggi: {total} | ✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚠️ Force: {len(force)}\n"
+            f"Trade oggi: {total} | ✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚠️ Force: {len(force)} | ⚖️ BE: {len(breakeven)}\n"
             f"Win rate: {winrate}%\n"
             f"Equity attuale: `{balance:.2f} USDT`"
         )
