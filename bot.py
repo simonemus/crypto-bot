@@ -30,7 +30,7 @@ from database import (
     save_breakout, load_breakouts, clear_breakout, clear_all_breakouts,
     get_open_trades,
     save_decay_cooldown, load_decay_cooldowns, clear_decay_cooldown,
-    get_weekly_trades, update_sl_order_id,
+    get_weekly_trades, update_sl_order_id, get_daily_pnl,
 )
 
 # ── LOGGING ───────────────────────────────────────────────────
@@ -56,6 +56,7 @@ last_pattern_candle = {}   # {symbol: timestamp}  — evita di controllare la st
 trailing_state = {}       # {symbol: {'breakeven_hit': bool, 'highest': float, 'lowest': float}}
 decay_cooldown = {}       # {symbol: timestamp} — cooldown dopo decadimento segnale
 proximity_alerted = {}    # {symbol: 'pdh'|'pdl'|None} — evita notifiche ripetute
+daily_loss_blocked = False  # True se daily max loss raggiunto
 
 # ── UTILITÀ ORARIO ────────────────────────────────────────────
 
@@ -96,6 +97,11 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
     # Già in posizione → skip
     if symbol in open_trades:
         return
+
+    # Daily max loss raggiunto → skip
+    if daily_loss_blocked:
+        logger.info(f"{symbol} — daily max loss raggiunto, skip")
+        return    
 
     # Cooldown dopo decadimento — aspetta 15 minuti prima di rilevare nuovo breakout
     if symbol in decay_cooldown:
@@ -260,7 +266,7 @@ def monitor_open_trades(exchange) -> None:
     """
     Monitora i trade aperti: controlla se SL o TP sono stati raggiunti.
     """
-    global open_trades
+    global open_trades, daily_loss_blocked
     to_remove = []
 
     for symbol, trade in open_trades.items():
@@ -314,6 +320,17 @@ def monitor_open_trades(exchange) -> None:
                 log_trade_close(symbol, price, exit_reason, pnl_pct, exit_reason=exit_reason)
                 to_remove.append(symbol)
                 send_message(msg)
+
+                # Controlla daily max loss
+                max_loss = float(get_config_param("max_loss") or config.DAILY_MAX_LOSS_PCT)
+                daily_pnl = get_daily_pnl()
+                if daily_pnl <= -max_loss:
+                    daily_loss_blocked = True
+                    send_message(
+                        f"🚨 *DAILY MAX LOSS RAGGIUNTO*\n"
+                        f"Perdita giornaliera: `{daily_pnl:.2f}%` su limite `-{max_loss:.1f}%`\n"
+                        f"Nessun nuovo trade fino a domani."
+                    )
 
         except Exception as e:
             logger.error(f"Errore monitor {symbol}: {e}", exc_info=True)
@@ -643,6 +660,7 @@ def run_bot() -> None:
                 force_closed_today = False
                 heartbeat_sent_today = False
                 weekly_report_sent = False
+                daily_loss_blocked = False
 
                 decay_cooldown = {}
                 for sym in list(config.SYMBOLS):

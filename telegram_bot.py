@@ -488,6 +488,7 @@ async def cmd_parametri(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"Retest buffer: `{config.RETEST_BUFFER}%`\n"
         f"Rischio/trade: `{config.RISK_PER_TRADE_PCT}%`\n"
         f"Margine max: `{config.MAX_MARGIN_PCT}%`\n"
+        f"Daily max loss: `{get_config_param('max_loss') or config.DAILY_MAX_LOSS_PCT}%`\n"
         f"Sessione: `{config.SESSION_START_HOUR}:00–{config.SESSION_END_HOUR}:00 UTC`\n"
         f"Weekend filter: `{'ON' if config.WEEKEND_FILTER else 'OFF'}`\n"
         f"Testnet: `{'SI' if config.TESTNET else 'NO'}`"
@@ -519,6 +520,17 @@ async def cmd_set(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             )
         except ValueError:
             await update.message.reply_text("⚠️ Valore non valido. RR deve essere tra 0.5 e 10.")
+    elif param == "maxloss":
+        try:
+            ml_val = float(value)
+            if not (0.5 <= ml_val <= 10):
+                raise ValueError
+            set_config_param("max_loss", str(ml_val))
+            await update.message.reply_text(
+                f"✅ Daily max loss aggiornato a `{ml_val}%`", parse_mode=ParseMode.MARKDOWN
+            )
+        except ValueError:
+            await update.message.reply_text("⚠️ Valore non valido. Max loss deve essere tra 0.5 e 10.")
     else:
         await update.message.reply_text(f"⚠️ Parametro `{param}` non riconosciuto.")
 
@@ -656,7 +668,8 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "/statshour — Statistiche winrate per ora\n\n"
         "⚙️ *Parametri*\n"
         "/parametri — Parametri correnti\n"
-        "/set rr 2.5 — Modifica il Risk/Reward\n\n"
+        "/set rr 2.5 — Modifica il Risk/Reward\n"
+        "/set maxloss 2.0 — Modifica il daily max loss\n\n"
         "🔧 *Altro*\n"
         "/test — Notifica di prova\n"
         "/help — Mostra questo messaggio"

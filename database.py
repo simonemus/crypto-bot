@@ -86,6 +86,9 @@ def init_db():
             INSERT INTO config (key, value, updated_at)
             VALUES ('rr', '2.0', now())
             ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('max_loss', '2.0', now())
+            ON CONFLICT (key) DO NOTHING;
 
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS atr numeric;
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS breakout_buffer numeric;
@@ -155,6 +158,22 @@ def get_daily_trade_count(symbol):
     except Exception as e:
         logger.error(f"DB get_daily_trade_count error: {e}")
         return 0
+
+def get_daily_pnl() -> float:
+    """Restituisce il PnL totale dei trade chiusi oggi in USDT percentuale."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT COALESCE(SUM(pnl_pct), 0) FROM trades WHERE date=%s AND status='closed'",
+            (_today_str(),)
+        )
+        result = cur.fetchone()[0]
+        release_db(conn)
+        return float(result)
+    except Exception as e:
+        logger.error(f"DB get_daily_pnl error: {e}")
+        return 0.0        
 
 def get_open_trade(symbol):
     try:

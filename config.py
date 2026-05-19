@@ -56,6 +56,7 @@ TRAILING_DISTANCE_MULTIPLIER  = 1.0   # ATR × 1.0 distanza trailing dopo breake
 
 # ── LIMITI OPERATIVI ─────────────────────────────────────────
 MAX_TRADES_PER_DAY_PER_ASSET = 1
+DAILY_MAX_LOSS_PCT = 2.0      # % massima perdita giornaliera prima del blocco
 
 # ── TIMEFRAME ────────────────────────────────────────────────
 TF_SIGNAL   = "15m"   # timeframe per rilevare breakout + trend
