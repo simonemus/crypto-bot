@@ -524,7 +524,46 @@ async def cmd_cooldown(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         else:
             lines.append(f"🟢 *{symbol}* — nessun cooldown")
 
-    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)        
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
+
+async def cmd_reset_cooldown(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/reset <asset> — Resetta manualmente il cooldown di un asset."""
+    from bot import decay_cooldown
+    from database import clear_decay_cooldown
+
+    args = ctx.args
+    if not args:
+        await update.message.reply_text(
+            "Uso: /reset BTC oppure /reset ETH oppure /reset SOL\n"
+            "Per resettare tutti: /reset all"
+        )
+        return
+
+    target = args[0].upper()
+
+    if target == "ALL":
+        for symbol in config.SYMBOLS:
+            if symbol in decay_cooldown:
+                del decay_cooldown[symbol]
+            clear_decay_cooldown(symbol)
+        await update.message.reply_text("✅ Cooldown resettato per tutti gli asset.")
+        return
+
+    # Cerca il simbolo corrispondente
+    symbol_match = None
+    for symbol in config.SYMBOLS:
+        if target in symbol:
+            symbol_match = symbol
+            break
+
+    if not symbol_match:
+        await update.message.reply_text(f"⚠️ Asset {target} non trovato. Usa BTC, ETH o SOL.")
+        return
+
+    if symbol_match in decay_cooldown:
+        del decay_cooldown[symbol_match]
+    clear_decay_cooldown(symbol_match)
+    await update.message.reply_text(f"✅ Cooldown resettato per {symbol_match}.")            
 
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/help — Mostra tutti i comandi disponibili."""
@@ -537,7 +576,8 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "💹 *Trading*\n"
         "/trade — Posizioni aperte con PnL live\n"
         "/livelli — PDH e PDL correnti di tutti gli asset\n"
-        "/cooldown — Stato cooldown per asset\n\n"
+        "/cooldown — Stato cooldown per asset\n"
+        "/resetcooldown — Reset cooldown di un asset\n\n"
         "📈 *Report*\n"
         "/report — Report giornaliero\n"
         "/reportweek — Report ultimi 7 giorni\n"
@@ -568,6 +608,7 @@ def start_telegram_bot() -> None:
     app.add_handler(CommandHandler("statsdirection", cmd_stats_direction))
     app.add_handler(CommandHandler("statshour", cmd_stats_hour))
     app.add_handler(CommandHandler("cooldown", cmd_cooldown))
+    app.add_handler(CommandHandler("resetcooldown", cmd_reset_cooldown))
 
     app.add_handler(CommandHandler("start",       cmd_start))
     app.add_handler(CommandHandler("stop",        cmd_stop))
