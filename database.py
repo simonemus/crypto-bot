@@ -344,10 +344,10 @@ def get_stats_by_pattern() -> list[dict]:
             SELECT 
                 pattern,
                 COUNT(*) as total,
-                SUM(CASE WHEN result = 'tp' THEN 1 ELSE 0 END) as wins,
-                SUM(CASE WHEN result = 'sl' THEN 1 ELSE 0 END) as losses,
-                SUM(CASE WHEN result = 'force_close' THEN 1 ELSE 0 END) as force,
-                SUM(CASE WHEN result = 'breakeven' THEN 1 ELSE 0 END) as breakeven
+                SUM(CASE WHEN exit_reason IN ('tp', 'trailing_win', 'force_close_win') THEN 1 ELSE 0 END) as wins,
+                SUM(CASE WHEN exit_reason IN ('sl', 'trailing_loss', 'force_close_loss') THEN 1 ELSE 0 END) as losses,
+                SUM(CASE WHEN exit_reason IN ('force_close_win', 'force_close_loss') THEN 1 ELSE 0 END) as force,
+                SUM(CASE WHEN exit_reason = 'breakeven' THEN 1 ELSE 0 END) as breakeven
             FROM trades
             WHERE status = 'closed' AND pattern IS NOT NULL
             GROUP BY pattern
@@ -395,10 +395,10 @@ def get_stats_by_asset() -> list[dict]:
             SELECT 
                 symbol,
                 COUNT(*) as total,
-                SUM(CASE WHEN result = 'tp' THEN 1 ELSE 0 END) as wins,
-                SUM(CASE WHEN result = 'sl' THEN 1 ELSE 0 END) as losses,
-                SUM(CASE WHEN result = 'force_close' THEN 1 ELSE 0 END) as force,
-                SUM(CASE WHEN result = 'breakeven' THEN 1 ELSE 0 END) as breakeven,
+                SUM(CASE WHEN exit_reason IN ('tp', 'trailing_win', 'force_close_win') THEN 1 ELSE 0 END) as wins,
+                SUM(CASE WHEN exit_reason IN ('sl', 'trailing_loss', 'force_close_loss') THEN 1 ELSE 0 END) as losses,
+                SUM(CASE WHEN exit_reason IN ('force_close_win', 'force_close_loss') THEN 1 ELSE 0 END) as force,
+                SUM(CASE WHEN exit_reason = 'breakeven' THEN 1 ELSE 0 END) as breakeven,
                 ROUND(AVG(pnl_pct)::numeric, 2) as avg_pnl
             FROM trades
             WHERE status = 'closed'
@@ -432,10 +432,10 @@ def get_stats_by_direction() -> list[dict]:
             SELECT 
                 direction,
                 COUNT(*) as total,
-                SUM(CASE WHEN result = 'tp' THEN 1 ELSE 0 END) as wins,
-                SUM(CASE WHEN result = 'sl' THEN 1 ELSE 0 END) as losses,
-                SUM(CASE WHEN result = 'force_close' THEN 1 ELSE 0 END) as force,
-                SUM(CASE WHEN result = 'breakeven' THEN 1 ELSE 0 END) as breakeven,
+                SUM(CASE WHEN exit_reason IN ('tp', 'trailing_win', 'force_close_win') THEN 1 ELSE 0 END) as wins,
+                SUM(CASE WHEN exit_reason IN ('sl', 'trailing_loss', 'force_close_loss') THEN 1 ELSE 0 END) as losses,
+                SUM(CASE WHEN exit_reason IN ('force_close_win', 'force_close_loss') THEN 1 ELSE 0 END) as force,
+                SUM(CASE WHEN exit_reason = 'breakeven' THEN 1 ELSE 0 END) as breakeven,
                 ROUND(AVG(pnl_pct)::numeric, 2) as avg_pnl
             FROM trades
             WHERE status = 'closed'
@@ -513,9 +513,9 @@ def get_stats_by_hour() -> list[dict]:
             SELECT 
                 EXTRACT(HOUR FROM opened_at) as hour,
                 COUNT(*) as total,
-                SUM(CASE WHEN result = 'tp' THEN 1 ELSE 0 END) as wins,
-                SUM(CASE WHEN result = 'sl' THEN 1 ELSE 0 END) as losses,
-                SUM(CASE WHEN result = 'breakeven' THEN 1 ELSE 0 END) as breakeven,
+                SUM(CASE WHEN exit_reason IN ('tp', 'trailing_win', 'force_close_win') THEN 1 ELSE 0 END) as wins,
+                SUM(CASE WHEN exit_reason IN ('sl', 'trailing_loss', 'force_close_loss') THEN 1 ELSE 0 END) as losses,
+                SUM(CASE WHEN exit_reason = 'breakeven' THEN 1 ELSE 0 END) as breakeven,
                 ROUND(AVG(pnl_pct)::numeric, 2) as avg_pnl
             FROM trades
             WHERE status = 'closed'
