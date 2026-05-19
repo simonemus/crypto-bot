@@ -484,7 +484,7 @@ async def cmd_parametri(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"Max risk ATR: `{config.MAX_RISK_ATR}`\n"
         f"Breakout buffer: `{config.BREAKOUT_BUFFER}%`\n"
         f"Retest buffer: `{config.RETEST_BUFFER}%`\n"
-        f"Risk/trade: `{config.RISK_PER_TRADE_PCT}%`\n"
+        f"Margine/trade: `{config.MARGIN_PER_TRADE_PCT}%`\n"
         f"Sessione: `{config.SESSION_START_HOUR}:00–{config.SESSION_END_HOUR}:00 UTC`\n"
         f"Weekend filter: `{'ON' if config.WEEKEND_FILTER else 'OFF'}`\n"
         f"Testnet: `{'SI' if config.TESTNET else 'NO'}`"

@@ -403,15 +403,15 @@ def calc_sl_tp(entry: float, direction: str, atr: float, rr: float) -> tuple[flo
 
 
 def calc_quantity(exchange, symbol: str, entry: float,
-                  sl: float, capital_usdt: float, risk_pct: float,
+                  sl: float, capital_usdt: float, margin_pct: float,
                   leverage: int = 2) -> float:
     """
-    Calcola la quantità in base al rischio % e alla leva.
-    Rischio 1% = margine impegnato 1% del capitale
+    Calcola la quantità in base al margine % e alla leva.
+    Margine 1% = 1% del capitale impegnato come margine
     Con leva 2x: valore posizione = margine × leva
     """
-    # Margine impegnato = risk_pct% del capitale
-    margin = capital_usdt * (risk_pct / 100)
+    # Margine impegnato = margin_pct% del capitale
+    margin = capital_usdt * (margin_pct / 100)
 
     # Valore posizione = margine × leva
     position_value = margin * leverage

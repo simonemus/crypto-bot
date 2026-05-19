@@ -46,7 +46,7 @@ RISK_REWARD_RATIO   = 2.0    # RR di default (modificabile via /set rr)
 MAX_RISK_ATR        = 1.30   # SL = entry ± ATR * MAX_RISK_ATR
 BREAKOUT_BUFFER     = 0.20   # % di buffer sopra/sotto PDH/PDL
 RETEST_BUFFER       = 0.50   # % di tolleranza per il retest
-RISK_PER_TRADE_PCT  = 1.0    # % del capitale da rischiare per trade
+MARGIN_PER_TRADE_PCT  = 1.0    # % del capitale usata come margine per trade
 SIGNAL_DECAY_BUFFER = 0.80   # % massima distanza dal livello rotto prima che il segnale decada
 
 # ── TRAILING STOP LOSS ────────────────────────────────────────
