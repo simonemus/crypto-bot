@@ -471,10 +471,13 @@ async def cmd_test(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("✅ Notifica di prova inviata!", parse_mode=ParseMode.MARKDOWN)
 
 async def cmd_livelli(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    """/livelli — Mostra PDH e PDL correnti di tutti gli asset."""
-    from binance_api import get_exchange, get_previous_day_hl, fetch_ohlcv, add_indicators
+    """/livelli — Mostra PDH e PDL correnti di tutti gli asset con prezzo live."""
+    from binance_api import get_exchange, get_previous_day_hl, fetch_ohlcv, add_indicators, get_ticker_price
+    from datetime import datetime, timezone, timedelta
     try:
         exchange = get_exchange()
+        now_it = datetime.now(timezone.utc) + timedelta(hours=2)
+        now_str = now_it.strftime("%d/%m/%Y %H:%M")
         lines = ["📊 *Livelli PDH/PDL correnti*\n"]
         for symbol in config.SYMBOLS:
             pdh, pdl = get_previous_day_hl(exchange, symbol)
@@ -484,17 +487,20 @@ async def cmd_livelli(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             df_15 = add_indicators(df_15)
             last = df_15.iloc[-2]
             atr = float(last["atr"])
-            price = float(last["close"])
+            price = get_ticker_price(exchange, symbol)
             atr_pct = atr / price
             buffer = round(max(0.0020, atr_pct * 1.5) * 100, 3)
 
+            dist_pdh = round((pdh - price) / pdh * 100, 2)
+            dist_pdl = round((price - pdl) / pdl * 100, 2)
+
             lines.append(
                 f"*{symbol}*\n"
-                f"PDH: `{pdh:.4f}`\n"
-                f"PDL: `{pdl:.4f}`\n"
+                f"Live: `{price:.2f}` — {now_str}\n"
+                f"PDH: `{pdh:.4f}` — distanza `{dist_pdh}%`\n"
+                f"PDL: `{pdl:.4f}` — distanza `{dist_pdl}%`\n"
                 f"Range: `{range_pct}%`\n"
-                f"ATR 15m: `{atr:.4f}`\n"
-                f"Buffer attuale: `{buffer}%`\n"
+                f"ATR 15m: `{atr:.4f}` | Buffer: `{buffer}%`\n"
             )
         await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
     except Exception as e:
