@@ -250,23 +250,56 @@ def _format_report(trades, titolo, show_equity=False):
 
 
 async def cmd_report_week(update, ctx):
-    from database import get_trades_from
-    trades = get_trades_from(7)
-    msg = _format_report(trades, "Report settimanale", show_equity=True)
+    from database import get_trades_range
+    from datetime import date, timedelta
+
+    today = date.today()
+    if config.WEEKEND_FILTER:
+        start = today - timedelta(days=today.weekday())
+    else:
+        start = today - timedelta(days=6)
+
+    end = today
+    year = today.year
+    start_str = start.strftime("%d/%m")
+    end_str = end.strftime("%d/%m")
+
+    trades = get_trades_range(str(start), str(end))
+    msg = _format_report(trades, f"Report settimanale {year} — {start_str} al {end_str}", show_equity=True)
     await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
 
 
 async def cmd_report_month(update, ctx):
-    from database import get_trades_from
-    trades = get_trades_from(30)
-    msg = _format_report(trades, "Report mensile", show_equity=True)
+    from database import get_trades_range
+    from datetime import date, timedelta
+
+    today = date.today()
+    start = today - timedelta(days=29)
+    end = today
+    year = today.year
+    start_str = start.strftime("%d/%m")
+    end_str = end.strftime("%d/%m")
+
+    trades = get_trades_range(str(start), str(end))
+    msg = _format_report(trades, f"Report mensile {year} — {start_str} al {end_str}", show_equity=True)
     await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
 
 
 async def cmd_report_all(update, ctx):
-    from database import get_all_trades
+    from database import get_all_trades, get_first_trade_date
+    from datetime import date, datetime
+
     trades = get_all_trades()
-    msg = _format_report(trades, "Report totale", show_equity=True)
+    first_date = get_first_trade_date()
+
+    if first_date:
+        first_dt = datetime.strptime(first_date, "%Y-%m-%d").date()
+        days_active = (date.today() - first_dt).days + 1
+        titolo = f"Report totale — attivo dal {first_dt.strftime('%d/%m/%Y')} ({days_active} giorni)"
+    else:
+        titolo = "Report totale"
+
+    msg = _format_report(trades, titolo, show_equity=True)
     await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
 
 async def cmd_stats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:

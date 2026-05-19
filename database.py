@@ -578,4 +578,50 @@ def get_weekly_trades(start_date: str, end_date: str) -> list[dict]:
         ]
     except Exception as e:
         logger.error(f"DB get_weekly_trades error: {e}")
-        return []                                      
+        return []
+
+def get_trades_range(start_date: str, end_date: str) -> list[dict]:
+    """Restituisce i trade chiusi in un intervallo di date."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT symbol, direction, entry, exit_price, pnl_pct, result, pattern, opened_at
+            FROM trades
+            WHERE status = 'closed'
+            AND date >= %s AND date <= %s
+            ORDER BY opened_at
+        """, (start_date, end_date))
+        rows = cur.fetchall()
+        release_db(conn)
+        return [
+            {
+                "symbol":     r[0],
+                "direction":  r[1],
+                "entry":      float(r[2]),
+                "exit_price": float(r[3]) if r[3] else 0.0,
+                "pnl_pct":    float(r[4]) if r[4] else 0.0,
+                "result":     r[5],
+                "pattern":    r[6],
+                "opened_at":  r[7],
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        logger.error(f"DB get_trades_range error: {e}")
+        return []
+
+def get_first_trade_date() -> str | None:
+    """Restituisce la data del primo trade nel database."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT MIN(date) FROM trades WHERE status = 'closed'")
+        row = cur.fetchone()
+        release_db(conn)
+        if row and row[0]:
+            return str(row[0])
+        return None
+    except Exception as e:
+        logger.error(f"DB get_first_trade_date error: {e}")
+        return None                                                      
