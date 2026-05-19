@@ -533,9 +533,9 @@ async def cmd_reset_cooldown(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
 
     args = ctx.args
     if not args:
+        symbols_list = "\n".join([f"/resetcooldown {s.split('/')[0]}" for s in config.SYMBOLS])
         await update.message.reply_text(
-            "Uso: /reset BTC oppure /reset ETH oppure /reset SOL\n"
-            "Per resettare tutti: /reset all"
+            f"Usa:\n{symbols_list}\n/resetcooldown all — Per resettare tutti"
         )
         return
 
