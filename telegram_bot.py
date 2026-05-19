@@ -506,6 +506,26 @@ async def cmd_livelli(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         await update.message.reply_text(f"⚠️ Errore: {e}")
 
+async def cmd_cooldown(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/cooldown — Mostra asset in cooldown e tempo rimanente."""
+    from bot import decay_cooldown
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+    lines = ["⏳ *Stato cooldown*\n"]
+
+    has_cooldown = False
+    for symbol in config.SYMBOLS:
+        if symbol in decay_cooldown:
+            elapsed = (now - decay_cooldown[symbol]).total_seconds()
+            remaining = max(0, int((3600 - elapsed) // 60))
+            lines.append(f"🔴 *{symbol}* — riprende tra {remaining} minuti")
+            has_cooldown = True
+        else:
+            lines.append(f"🟢 *{symbol}* — nessun cooldown")
+
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)        
+
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/help — Mostra tutti i comandi disponibili."""
     msg = (
@@ -516,7 +536,8 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "/status — Stato corrente e posizioni aperte\n\n"
         "💹 *Trading*\n"
         "/trade — Posizioni aperte con PnL live\n"
-        "/livelli — PDH e PDL correnti di tutti gli asset\n\n"
+        "/livelli — PDH e PDL correnti di tutti gli asset\n"
+        "/cooldown — Stato cooldown per asset\n\n"
         "📈 *Report*\n"
         "/report — Report giornaliero\n"
         "/reportweek — Report ultimi 7 giorni\n"
@@ -546,6 +567,7 @@ def start_telegram_bot() -> None:
     app.add_handler(CommandHandler("statsasset", cmd_stats_asset))
     app.add_handler(CommandHandler("statsdirection", cmd_stats_direction))
     app.add_handler(CommandHandler("statshour", cmd_stats_hour))
+    app.add_handler(CommandHandler("cooldown", cmd_cooldown))
 
     app.add_handler(CommandHandler("start",       cmd_start))
     app.add_handler(CommandHandler("stop",        cmd_stop))
