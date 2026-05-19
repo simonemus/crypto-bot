@@ -30,6 +30,7 @@ from database import (
     save_breakout, load_breakouts, clear_breakout, clear_all_breakouts,
     get_open_trades,
     save_decay_cooldown, load_decay_cooldowns, clear_decay_cooldown,
+    get_weekly_trades,
 )
 
 # ── LOGGING ───────────────────────────────────────────────────
@@ -520,7 +521,51 @@ def send_pnl_update(exchange) -> None:
             )
         send_message("\n".join(lines))
     except Exception as e:
-        logger.error(f"Errore send_pnl_update: {e}")            
+        logger.error(f"Errore send_pnl_update: {e}")
+
+def send_weekly_report(exchange) -> None:
+    """Invia il report settimanale ogni lunedì alle 8:50 italiane."""
+    try:
+        from datetime import date, timedelta
+        today = date.today()
+        # Lunedì della settimana scorsa
+        last_monday = today - timedelta(days=today.weekday() + 7)
+        # Venerdì o domenica in base al weekend filter
+        if config.WEEKEND_FILTER:
+            last_end = last_monday + timedelta(days=4)  # venerdì
+        else:
+            last_end = last_monday + timedelta(days=6)  # domenica
+
+        trades = get_weekly_trades(str(last_monday), str(last_end))
+        wins      = [t for t in trades if t.get("result") == "tp"]
+        losses    = [t for t in trades if t.get("result") == "sl"]
+        breakeven = [t for t in trades if t.get("result") == "breakeven"]
+        total     = len(trades)
+        winrate   = round(len(wins) / total * 100, 1) if total else 0
+
+        pnl_total = round(sum(t.get("pnl_pct", 0) for t in trades), 2)
+        pnl_medio = round(pnl_total / total, 2) if total else 0
+        sign_total = "+" if pnl_total >= 0 else ""
+        sign_medio = "+" if pnl_medio >= 0 else ""
+
+        balance = get_balance_usdt(exchange)
+        year = last_monday.year
+
+        # Formato date
+        start_str = last_monday.strftime("%d/%m")
+        end_str = last_end.strftime("%d/%m")
+
+        msg = (
+            f"📊 *Report settimanale {year} — {start_str} al {end_str}*\n"
+            f"Trade totali: {total} | ✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚖️ BE: {len(breakeven)}\n"
+            f"Win rate: {winrate}%\n"
+            f"PnL medio: {sign_medio}{pnl_medio}%\n"
+            f"PnL totale: {sign_total}{pnl_total}%\n"
+            f"Equity: `{balance:.2f} USDT`"
+        )
+        send_message(msg)
+    except Exception as e:
+        logger.error(f"Errore report settimanale: {e}")                    
 
 def send_evening_report(exchange) -> None:
     """Invia il report serale delle 22:00."""
@@ -589,6 +634,7 @@ def run_bot() -> None:
     force_closed_today = False
     last_pnl_notify = None
     heartbeat_sent_today = False
+    weekly_report_sent = False
 
     while BOT_RUNNING:
         try:
@@ -601,6 +647,7 @@ def run_bot() -> None:
                 report_sent_today = False
                 force_closed_today = False
                 heartbeat_sent_today = False
+                weekly_report_sent = False
 
                 decay_cooldown = {}
                 for sym in list(config.SYMBOLS):
@@ -626,18 +673,11 @@ def run_bot() -> None:
                 )
                 heartbeat_sent_today = True
 
-            # Heartbeat mattutino
-            if now.hour == 6 and now.minute == 50 and not heartbeat_sent_today:
-                balance = get_balance_usdt(exchange)
-                send_message(
-                    f"🟢 Bot attivo — {now.strftime('%d/%m/%Y')}\n"
-                    f"Sessione: tra 10 minuti (07:00 UTC)\n"
-                    f"Equity: {balance:.2f} USDT\n"
-                    f"Asset: {' | '.join(config.SYMBOLS)}\n"
-                    f"Leva: 2x"
-                )
-                heartbeat_sent_today = True                
-
+            # Report settimanale — ogni lunedì alle 6:50 UTC (8:50 italiane)
+            if now.weekday() == 0 and now.hour == 6 and now.minute == 50 and not weekly_report_sent:
+                send_weekly_report(exchange)
+                weekly_report_sent = True
+                
             # Report serale
             if is_report_time() and not report_sent_today:
                 send_evening_report(exchange)

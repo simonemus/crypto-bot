@@ -547,4 +547,35 @@ def get_stats_by_hour() -> list[dict]:
         return result
     except Exception as e:
         logger.error(f"DB get_stats_by_hour error: {e}")
-        return []                              
+        return []
+
+def get_weekly_trades(start_date: str, end_date: str) -> list[dict]:
+    """Restituisce i trade chiusi in un intervallo di date."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT symbol, direction, entry, exit_price, pnl_pct, result, pattern, opened_at
+            FROM trades
+            WHERE status = 'closed'
+            AND date >= %s AND date <= %s
+            ORDER BY opened_at
+        """, (start_date, end_date))
+        rows = cur.fetchall()
+        release_db(conn)
+        return [
+            {
+                "symbol":     r[0],
+                "direction":  r[1],
+                "entry":      float(r[2]),
+                "exit_price": float(r[3]) if r[3] else 0.0,
+                "pnl_pct":    float(r[4]) if r[4] else 0.0,
+                "result":     r[5],
+                "pattern":    r[6],
+                "opened_at":  r[7],
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        logger.error(f"DB get_weekly_trades error: {e}")
+        return []                                      
