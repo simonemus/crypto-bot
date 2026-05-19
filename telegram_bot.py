@@ -204,7 +204,10 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     await update.message.reply_text("\n".join(lines))
 
-def _format_report(trades, titolo):
+def _format_report(trades, titolo, show_equity=False):
+    from binance_api import get_exchange, get_balance_usdt
+    from database import get_equity_history
+
     wins      = [t for t in trades if t.get("result") == "tp"]
     losses    = [t for t in trades if t.get("result") == "sl"]
     breakeven = [t for t in trades if t.get("result") == "breakeven"]
@@ -224,27 +227,46 @@ def _format_report(trades, titolo):
         f"PnL medio: {sign_medio}{pnl_medio}%",
         f"PnL totale: {sign_total}{pnl_total}%",
     ]
+
+    if show_equity:
+        try:
+            exchange = get_exchange()
+            equity_now = get_balance_usdt(exchange)
+            history = get_equity_history(30)
+            if history:
+                equity_start = history[-1]["balance"]
+                guadagno = round(equity_now - equity_start, 2)
+                guadagno_pct = round((equity_now - equity_start) / equity_start * 100, 2)
+                sign_g = "+" if guadagno >= 0 else ""
+                lines.append(f"Equity iniziale: `{equity_start:.2f} USDT`")
+                lines.append(f"Equity attuale: `{equity_now:.2f} USDT`")
+                lines.append(f"Guadagno: `{sign_g}{guadagno:.2f} USDT ({sign_g}{guadagno_pct}%)`")
+            else:
+                lines.append(f"Equity attuale: `{equity_now:.2f} USDT`")
+        except Exception as e:
+            lines.append(f"⚠️ Errore equity: {e}")
+
     return "\n".join(lines)
 
 
 async def cmd_report_week(update, ctx):
     from database import get_trades_from
     trades = get_trades_from(7)
-    msg = _format_report(trades, "Report settimanale")
+    msg = _format_report(trades, "Report settimanale", show_equity=True)
     await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
 
 
 async def cmd_report_month(update, ctx):
     from database import get_trades_from
     trades = get_trades_from(30)
-    msg = _format_report(trades, "Report mensile")
+    msg = _format_report(trades, "Report mensile", show_equity=True)
     await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
 
 
 async def cmd_report_all(update, ctx):
     from database import get_all_trades
     trades = get_all_trades()
-    msg = _format_report(trades, "Report totale")
+    msg = _format_report(trades, "Report totale", show_equity=True)
     await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
 
 async def cmd_stats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
