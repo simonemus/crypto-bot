@@ -174,45 +174,44 @@ async def cmd_trade(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/report — Riepilogo trade del giorno corrente."""
-    trades    = get_today_trades()
-    wins      = [t for t in trades if t.get("result") == "tp"]
-    losses    = [t for t in trades if t.get("result") == "sl"]
-    breakeven = [t for t in trades if t.get("result") == "breakeven"]
-    total     = len(trades)
-    winrate   = round(len(wins) / total * 100, 1) if total else 0
+    from datetime import date
+    trades = get_today_trades()
+    today  = date.today().strftime("%d/%m/%Y")
+    msg    = _format_report(trades, f"Report giornaliero — {today}")
 
-    pnl_total = round(sum(t.get("pnl_pct", 0) for t in trades), 2)
-    pnl_medio = round(pnl_total / total, 2) if total else 0
-    sign_total = "+" if pnl_total >= 0 else ""
-    sign_medio = "+" if pnl_medio >= 0 else ""
-
-    lines = [
-        f"📊 *Report giornaliero*",
-        f"Trade totali: {total}",
-        f"✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚖️ BE: {len(breakeven)}",
-        f"Win rate: {winrate}%",
-        f"PnL medio: {sign_medio}{pnl_medio}%",
-        f"PnL totale: {sign_total}{pnl_total}%",
-    ]
+    lines  = [msg]
     for t in trades:
-        risultato = t.get("result") or "aperto"
-        emoji = {"tp": "✅", "sl": "🔴", "breakeven": "⚖️"}.get(risultato, "•")
+        reason = t.get("exit_reason") or t.get("result") or "aperto"
+        emoji  = {
+            "tp":              "✅",
+            "sl":              "🔴",
+            "trailing_win":    "📈",
+            "trailing_loss":   "📉",
+            "breakeven":       "⚖️",
+            "force_close_win": "⚠️",
+            "force_close_loss":"⚠️",
+        }.get(reason, "•")
         lines.append(
-            f"{emoji} {t['symbol']} {t.get('direction','').upper()} "
-            f"— {risultato}"
+            f"{emoji} {t['symbol']} {t.get('direction','').upper()} — {reason}"
         )
 
-    await update.message.reply_text("\n".join(lines))
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
 
 def _format_report(trades, titolo, show_equity=False):
     from binance_api import get_exchange, get_balance_usdt
     from database import get_equity_history
 
-    wins      = [t for t in trades if t.get("result") == "tp"]
-    losses    = [t for t in trades if t.get("result") == "sl"]
-    breakeven = [t for t in trades if t.get("result") == "breakeven"]
-    total     = len(trades)
-    winrate   = round(len(wins) / total * 100, 1) if total else 0
+    tp            = len([t for t in trades if t.get("exit_reason") == "tp"])
+    sl            = len([t for t in trades if t.get("exit_reason") == "sl"])
+    trailing_win  = len([t for t in trades if t.get("exit_reason") == "trailing_win"])
+    trailing_loss = len([t for t in trades if t.get("exit_reason") == "trailing_loss"])
+    breakeven     = len([t for t in trades if t.get("exit_reason") == "breakeven"])
+    fc_win        = len([t for t in trades if t.get("exit_reason") == "force_close_win"])
+    fc_loss       = len([t for t in trades if t.get("exit_reason") == "force_close_loss"])
+    total         = len(trades)
+
+    wins    = tp + trailing_win + fc_win
+    winrate = round(wins / total * 100, 1) if total else 0
 
     pnl_total = round(sum(t.get("pnl_pct", 0) for t in trades), 2)
     pnl_medio = round(pnl_total / total, 2) if total else 0
@@ -222,7 +221,10 @@ def _format_report(trades, titolo, show_equity=False):
     lines = [
         f"📊 *{titolo}*",
         f"Trade totali: {total}",
-        f"✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚖️ BE: {len(breakeven)}",
+        f"✅ TP: {tp} | 🔴 SL: {sl}",
+        f"📈 Trailing Win: {trailing_win} | 📉 Trailing Loss: {trailing_loss}",
+        f"⚖️ Breakeven: {breakeven}",
+        f"⚠️ Force Close Win: {fc_win} | Force Close Loss: {fc_loss}",
         f"Win rate: {winrate}%",
         f"PnL medio: {sign_medio}{pnl_medio}%",
         f"PnL totale: {sign_total}{pnl_total}%",

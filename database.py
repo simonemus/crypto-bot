@@ -91,6 +91,7 @@ def init_db():
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS breakout_buffer numeric;
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS sl_order_id text;
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS tp_order_id text;
+            ALTER TABLE trades ADD COLUMN IF NOT EXISTS exit_reason text;
         """)
         conn.commit()
         release_db(conn)
@@ -130,13 +131,13 @@ def log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=0.0, brea
     except Exception as e:
         logger.error(f"DB log_trade_open error: {e}")
 
-def log_trade_close(symbol, exit_price, result, pnl_pct=0.0):
+def log_trade_close(symbol, exit_price, result, pnl_pct=0.0, exit_reason=None):
     try:
         conn = get_db()
         cur = conn.cursor()
         cur.execute(
-            "UPDATE trades SET exit_price=%s, result=%s, status=%s, closed_at=%s, pnl_pct=%s WHERE symbol=%s AND status=%s",
-            (exit_price, result, "closed", _now_iso(), pnl_pct, symbol, "open")
+            "UPDATE trades SET exit_price=%s, result=%s, status=%s, closed_at=%s, pnl_pct=%s, exit_reason=%s WHERE symbol=%s AND status=%s",
+            (exit_price, result, "closed", _now_iso(), pnl_pct, exit_reason or result, symbol, "open")
         )
         conn.commit()
         release_db(conn)
@@ -171,10 +172,10 @@ def get_today_trades():
     try:
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("SELECT symbol, direction, result, date, pnl_pct FROM trades WHERE date=%s", (_today_str(),))
+        cur.execute("SELECT symbol, direction, result, date, pnl_pct, exit_reason FROM trades WHERE date=%s", (_today_str(),))
         rows = cur.fetchall()
         release_db(conn)
-        return [{"symbol": r[0], "direction": r[1], "result": r[2], "date": str(r[3]), "pnl_pct": float(r[4] or 0)} for r in rows]
+        return [{"symbol": r[0], "direction": r[1], "result": r[2], "date": str(r[3]), "pnl_pct": float(r[4] or 0), "exit_reason": r[5]} for r in rows]
     except Exception as e:
         logger.error(f"DB get_today_trades error: {e}")
         return []
@@ -234,10 +235,10 @@ def get_all_trades():
     try:
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("SELECT symbol, direction, result, date, pnl_pct FROM trades ORDER BY date DESC")
+        cur.execute("SELECT symbol, direction, result, date, pnl_pct, exit_reason FROM trades ORDER BY date DESC")
         rows = cur.fetchall()
         release_db(conn)
-        return [{"symbol": r[0], "direction": r[1], "result": r[2], "date": str(r[3]), "pnl_pct": float(r[4] or 0)} for r in rows]
+        return [{"symbol": r[0], "direction": r[1], "result": r[2], "date": str(r[3]), "pnl_pct": float(r[4] or 0), "exit_reason": r[5]} for r in rows]
     except Exception as e:
         logger.error(f"DB get_all_trades error: {e}")
         return []
@@ -247,10 +248,10 @@ def get_trades_from(days):
         since = (date.today() - timedelta(days=days)).isoformat()
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("SELECT symbol, direction, result, date, pnl_pct FROM trades WHERE date>=%s ORDER BY date DESC", (since,))
+        cur.execute("SELECT symbol, direction, result, date, pnl_pct, exit_reason FROM trades WHERE date>=%s ORDER BY date DESC", (since,))
         rows = cur.fetchall()
         release_db(conn)
-        return [{"symbol": r[0], "direction": r[1], "result": r[2], "date": str(r[3]), "pnl_pct": float(r[4] or 0)} for r in rows]
+        return [{"symbol": r[0], "direction": r[1], "result": r[2], "date": str(r[3]), "pnl_pct": float(r[4] or 0), "exit_reason": r[5]} for r in rows]
     except Exception as e:
         logger.error(f"DB get_trades_from error: {e}")
         return []
@@ -559,7 +560,7 @@ def get_weekly_trades(start_date: str, end_date: str) -> list[dict]:
         conn = get_db()
         cur = conn.cursor()
         cur.execute("""
-            SELECT symbol, direction, entry, exit_price, pnl_pct, result, pattern, opened_at
+            SELECT symbol, direction, entry, exit_price, pnl_pct, result, pattern, opened_at, exit_reason
             FROM trades
             WHERE status = 'closed'
             AND date >= %s AND date <= %s
@@ -569,14 +570,15 @@ def get_weekly_trades(start_date: str, end_date: str) -> list[dict]:
         release_db(conn)
         return [
             {
-                "symbol":     r[0],
-                "direction":  r[1],
-                "entry":      float(r[2]),
-                "exit_price": float(r[3]) if r[3] else 0.0,
-                "pnl_pct":    float(r[4]) if r[4] else 0.0,
-                "result":     r[5],
-                "pattern":    r[6],
-                "opened_at":  r[7],
+                "symbol":      r[0],
+                "direction":   r[1],
+                "entry":       float(r[2]),
+                "exit_price":  float(r[3]) if r[3] else 0.0,
+                "pnl_pct":     float(r[4]) if r[4] else 0.0,
+                "result":      r[5],
+                "pattern":     r[6],
+                "opened_at":   r[7],
+                "exit_reason": r[8],
             }
             for r in rows
         ]
@@ -590,7 +592,7 @@ def get_trades_range(start_date: str, end_date: str) -> list[dict]:
         conn = get_db()
         cur = conn.cursor()
         cur.execute("""
-            SELECT symbol, direction, entry, exit_price, pnl_pct, result, pattern, opened_at
+            SELECT symbol, direction, entry, exit_price, pnl_pct, result, pattern, opened_at, exit_reason
             FROM trades
             WHERE status = 'closed'
             AND date >= %s AND date <= %s
@@ -600,14 +602,15 @@ def get_trades_range(start_date: str, end_date: str) -> list[dict]:
         release_db(conn)
         return [
             {
-                "symbol":     r[0],
-                "direction":  r[1],
-                "entry":      float(r[2]),
-                "exit_price": float(r[3]) if r[3] else 0.0,
-                "pnl_pct":    float(r[4]) if r[4] else 0.0,
-                "result":     r[5],
-                "pattern":    r[6],
-                "opened_at":  r[7],
+                "symbol":      r[0],
+                "direction":   r[1],
+                "entry":       float(r[2]),
+                "exit_price":  float(r[3]) if r[3] else 0.0,
+                "pnl_pct":     float(r[4]) if r[4] else 0.0,
+                "result":      r[5],
+                "pattern":     r[6],
+                "opened_at":   r[7],
+                "exit_reason": r[8],
             }
             for r in rows
         ]

@@ -259,10 +259,6 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
 def monitor_open_trades(exchange) -> None:
     """
     Monitora i trade aperti: controlla se SL o TP sono stati raggiunti.
-    Registra il risultato in base al PnL reale:
-    - PnL > 0 → tp (win)
-    - PnL < 0 → sl (loss)
-    - PnL = 0 → breakeven
     """
     global open_trades
     to_remove = []
@@ -293,21 +289,29 @@ def monitor_open_trades(exchange) -> None:
                     pnl_pct = -pnl_pct
                 pnl_pct = round(pnl_pct, 2)
 
-                # Determina il risultato in base al PnL reale
-                if pnl_pct > 0.01:
-                    result = "tp"
-                    emoji = "✅"
-                    msg = f"✅ Target/Trailing — {symbol}\nExit: {price:.4f} | PnL: +{pnl_pct}%"
-                elif pnl_pct < -0.01:
-                    result = "sl"
-                    emoji = "🔴"
-                    msg = f"🔴 Stop Loss — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
-                else:
-                    result = "breakeven"
-                    emoji = "⚖️"
-                    msg = f"⚖️ Breakeven — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
+                # Determina exit_reason in base a hit e trailing
+                state = trailing_state.get(symbol, {})
+                breakeven_hit = state.get("breakeven_hit", False)
 
-                log_trade_close(symbol, price, result, pnl_pct)
+                if hit == "tp":
+                    exit_reason = "tp"
+                    msg = f"✅ Take Profit — {symbol}\nExit: {price:.4f} | PnL: +{pnl_pct}%"
+                elif hit == "sl":
+                    if breakeven_hit:
+                        if pnl_pct > 0:
+                            exit_reason = "trailing_win"
+                            msg = f"📈 Trailing Win — {symbol}\nExit: {price:.4f} | PnL: +{pnl_pct}%"
+                        elif pnl_pct < 0:
+                            exit_reason = "trailing_loss"
+                            msg = f"📉 Trailing Loss — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
+                        else:
+                            exit_reason = "breakeven"
+                            msg = f"⚖️ Breakeven — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
+                    else:
+                        exit_reason = "sl"
+                        msg = f"🔴 Stop Loss — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
+
+                log_trade_close(symbol, price, exit_reason, pnl_pct, exit_reason=exit_reason)
                 to_remove.append(symbol)
                 send_message(msg)
 
@@ -316,8 +320,8 @@ def monitor_open_trades(exchange) -> None:
 
     for sym in to_remove:
         del open_trades[sym]
-        if symbol in trailing_state:
-            del trailing_state[symbol]
+        if sym in trailing_state:
+            del trailing_state[sym]
 
 
 def force_close_all(exchange) -> None:
@@ -339,23 +343,23 @@ def force_close_all(exchange) -> None:
                 pnl_pct = -pnl_pct
             pnl_pct = round(pnl_pct, 2)
 
-            # Determina il risultato in base al PnL
+            # Determina exit_reason
             if pnl_pct > 0:
-                result = "tp"
-                emoji = "✅"
-            elif pnl_pct < 0:
-                result = "sl"
-                emoji = "🔴"
-            else:
-                result = "force_close"
+                exit_reason = "force_close_win"
                 emoji = "⚠️"
+            elif pnl_pct < 0:
+                exit_reason = "force_close_loss"
+                emoji = "⚠️"
+            else:
+                exit_reason = "breakeven"
+                emoji = "⚖️"
 
-            log_trade_close(symbol, price, result, pnl_pct)
+            log_trade_close(symbol, price, exit_reason, pnl_pct, exit_reason=exit_reason)
             sign = "+" if pnl_pct >= 0 else ""
             send_message(
                 f"{emoji} *Force Close* — {symbol}\n"
                 f"Exit: `{price:.4f}` | PnL: `{sign}{pnl_pct}%`\n"
-                f"Risultato: {result}"
+                f"Risultato: {exit_reason}"
             )
         except Exception as e:
             logger.error(f"Errore force close {symbol}: {e}")
@@ -552,42 +556,23 @@ def send_weekly_report(exchange) -> None:
     """Invia il report settimanale ogni lunedì alle 8:50 italiane."""
     try:
         from datetime import date, timedelta
+        from telegram_bot import _format_report
         today = date.today()
-        # Lunedì della settimana scorsa
         last_monday = today - timedelta(days=today.weekday() + 7)
-        # Venerdì o domenica in base al weekend filter
         if config.WEEKEND_FILTER:
-            last_end = last_monday + timedelta(days=4)  # venerdì
+            last_end = last_monday + timedelta(days=4)
         else:
-            last_end = last_monday + timedelta(days=6)  # domenica
+            last_end = last_monday + timedelta(days=6)
 
-        trades = get_weekly_trades(str(last_monday), str(last_end))
-        wins      = [t for t in trades if t.get("result") == "tp"]
-        losses    = [t for t in trades if t.get("result") == "sl"]
-        breakeven = [t for t in trades if t.get("result") == "breakeven"]
-        total     = len(trades)
-        winrate   = round(len(wins) / total * 100, 1) if total else 0
-
-        pnl_total = round(sum(t.get("pnl_pct", 0) for t in trades), 2)
-        pnl_medio = round(pnl_total / total, 2) if total else 0
-        sign_total = "+" if pnl_total >= 0 else ""
-        sign_medio = "+" if pnl_medio >= 0 else ""
-
-        balance = get_balance_usdt(exchange)
-        year = last_monday.year
-
-        # Formato date
+        trades    = get_weekly_trades(str(last_monday), str(last_end))
+        balance   = get_balance_usdt(exchange)
+        year      = last_monday.year
         start_str = last_monday.strftime("%d/%m")
-        end_str = last_end.strftime("%d/%m")
+        end_str   = last_end.strftime("%d/%m")
 
-        msg = (
-            f"📊 *Report settimanale {year} — {start_str} al {end_str}*\n"
-            f"Trade totali: {total} | ✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚖️ BE: {len(breakeven)}\n"
-            f"Win rate: {winrate}%\n"
-            f"PnL medio: {sign_medio}{pnl_medio}%\n"
-            f"PnL totale: {sign_total}{pnl_total}%\n"
-            f"Equity: `{balance:.2f} USDT`"
-        )
+        titolo = f"Report settimanale {year} — {start_str} al {end_str}"
+        msg    = _format_report(trades, titolo)
+        msg   += f"\nEquity: `{balance:.2f} USDT`"
         send_message(msg)
     except Exception as e:
         logger.error(f"Errore report settimanale: {e}")                    
@@ -599,26 +584,11 @@ def send_evening_report(exchange) -> None:
         log_equity(balance)
 
         from database import get_today_trades
-        trades    = get_today_trades()
-        wins      = [t for t in trades if t.get("result") == "tp"]
-        losses    = [t for t in trades if t.get("result") == "sl"]
-        breakeven = [t for t in trades if t.get("result") == "breakeven"]
-        total     = len(trades)
-        winrate   = round(len(wins) / total * 100, 1) if total else 0
-
-        pnl_total = round(sum(t.get("pnl_pct", 0) for t in trades), 2)
-        pnl_medio = round(pnl_total / total, 2) if total else 0
-        sign_total = "+" if pnl_total >= 0 else ""
-        sign_medio = "+" if pnl_medio >= 0 else ""
-
-        msg = (
-            f"📊 *Report serale — {now_utc().strftime('%d/%m/%Y')}*\n"
-            f"Trade oggi: {total} | ✅ Win: {len(wins)} | 🔴 Loss: {len(losses)} | ⚖️ BE: {len(breakeven)}\n"
-            f"Win rate: {winrate}%\n"
-            f"PnL medio: {sign_medio}{pnl_medio}%\n"
-            f"PnL totale: {sign_total}{pnl_total}%\n"
-            f"Equity attuale: `{balance:.2f} USDT`"
-        )
+        from telegram_bot import _format_report
+        trades = get_today_trades()
+        titolo = f"Report serale — {now_utc().strftime('%d/%m/%Y')}"
+        msg    = _format_report(trades, titolo)
+        msg   += f"\nEquity attuale: `{balance:.2f} USDT`"
         send_message(msg)
     except Exception as e:
         logger.error(f"Errore report serale: {e}")
