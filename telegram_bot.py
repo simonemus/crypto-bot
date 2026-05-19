@@ -7,9 +7,9 @@
 import logging
 import threading
 import re
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, ContextTypes
+    ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 )
 from telegram.constants import ParseMode
 
@@ -527,29 +527,36 @@ async def cmd_cooldown(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
 
 async def cmd_reset_cooldown(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    """/reset <asset> — Resetta manualmente il cooldown di un asset."""
+    """/resetcooldown — Resetta manualmente il cooldown di un asset."""
+    keyboard = []
+    row = []
+    for symbol in config.SYMBOLS:
+        asset = symbol.split('/')[0]
+        row.append(InlineKeyboardButton(asset, callback_data=f"reset_{asset}"))
+    keyboard.append(row)
+    keyboard.append([InlineKeyboardButton("🔄 Reset tutti", callback_data="reset_ALL")])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Seleziona l'asset da resettare:", reply_markup=reply_markup)
+
+
+async def cmd_reset_cooldown_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Gestisce i bottoni del reset cooldown."""
     from bot import decay_cooldown
     from database import clear_decay_cooldown
 
-    args = ctx.args
-    if not args:
-        symbols_list = "\n".join([f"/resetcooldown {s.split('/')[0]}" for s in config.SYMBOLS])
-        await update.message.reply_text(
-            f"Usa:\n{symbols_list}\n/resetcooldown all — Per resettare tutti"
-        )
-        return
+    query = update.callback_query
+    await query.answer()
 
-    target = args[0].upper()
+    target = query.data.replace("reset_", "")
 
     if target == "ALL":
         for symbol in config.SYMBOLS:
             if symbol in decay_cooldown:
                 del decay_cooldown[symbol]
             clear_decay_cooldown(symbol)
-        await update.message.reply_text("✅ Cooldown resettato per tutti gli asset.")
+        await query.edit_message_text("✅ Cooldown resettato per tutti gli asset.")
         return
 
-    # Cerca il simbolo corrispondente
     symbol_match = None
     for symbol in config.SYMBOLS:
         if target in symbol:
@@ -557,13 +564,13 @@ async def cmd_reset_cooldown(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
             break
 
     if not symbol_match:
-        await update.message.reply_text(f"⚠️ Asset {target} non trovato. Usa BTC, ETH o SOL.")
+        await query.edit_message_text(f"⚠️ Asset {target} non trovato.")
         return
 
     if symbol_match in decay_cooldown:
         del decay_cooldown[symbol_match]
     clear_decay_cooldown(symbol_match)
-    await update.message.reply_text(f"✅ Cooldown resettato per {symbol_match}.")            
+    await query.edit_message_text(f"✅ Cooldown resettato per {symbol_match}.")            
 
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/help — Mostra tutti i comandi disponibili."""
@@ -609,6 +616,7 @@ def start_telegram_bot() -> None:
     app.add_handler(CommandHandler("statshour", cmd_stats_hour))
     app.add_handler(CommandHandler("cooldown", cmd_cooldown))
     app.add_handler(CommandHandler("resetcooldown", cmd_reset_cooldown))
+    app.add_handler(CallbackQueryHandler(cmd_reset_cooldown_callback, pattern="^reset_"))
 
     app.add_handler(CommandHandler("start",       cmd_start))
     app.add_handler(CommandHandler("stop",        cmd_stop))
