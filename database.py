@@ -89,6 +89,8 @@ def init_db():
 
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS atr numeric;
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS breakout_buffer numeric;
+            ALTER TABLE trades ADD COLUMN IF NOT EXISTS sl_order_id text;
+            ALTER TABLE trades ADD COLUMN IF NOT EXISTS tp_order_id text;
         """)
         conn.commit()
         release_db(conn)
@@ -115,13 +117,13 @@ def log_signal(symbol, direction, pdh, pdl):
     except Exception as e:
         logger.error(f"DB log_signal error: {e}")
 
-def log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=0.0, breakout_buffer=0.0):
+def log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=0.0, breakout_buffer=0.0, sl_order_id=None, tp_order_id=None):
     try:
         conn = get_db()
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO trades (symbol, direction, entry, sl, tp, qty, pattern, status, date, opened_at, atr, breakout_buffer) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (symbol, direction, entry, sl, tp, qty, pattern, "open", _today_str(), _now_iso(), atr, breakout_buffer)
+            "INSERT INTO trades (symbol, direction, entry, sl, tp, qty, pattern, status, date, opened_at, atr, breakout_buffer, sl_order_id, tp_order_id) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (symbol, direction, entry, sl, tp, qty, pattern, "open", _today_str(), _now_iso(), atr, breakout_buffer, sl_order_id, tp_order_id)
         )
         conn.commit()
         release_db(conn)
@@ -308,20 +310,22 @@ def get_open_trades() -> list[dict]:
         conn = get_db()
         cur = conn.cursor()
         cur.execute(
-            "SELECT symbol, direction, entry, sl, tp, qty, pattern FROM trades WHERE status='open'"
+            "SELECT symbol, direction, entry, sl, tp, qty, pattern, atr, sl_order_id, tp_order_id FROM trades WHERE status='open'"
         )
         rows = cur.fetchall()
         release_db(conn)
         return [
             {
-                "symbol":    r[0],
-                "direction": r[1],
-                "entry":     float(r[2]),
-                "sl":        float(r[3]),
-                "tp":        float(r[4]),
-                "qty":       float(r[5]),
-                "pattern":   r[6],
-                "atr":       0.0,  # ATR non salvato, useremo 0
+                "symbol":      r[0],
+                "direction":   r[1],
+                "entry":       float(r[2]),
+                "sl":          float(r[3]),
+                "tp":          float(r[4]),
+                "qty":         float(r[5]),
+                "pattern":     r[6],
+                "atr":         float(r[7]) if r[7] else 0.0,
+                "sl_order_id": r[8],
+                "tp_order_id": r[9],
             }
             for r in rows
         ]
@@ -610,6 +614,20 @@ def get_trades_range(start_date: str, end_date: str) -> list[dict]:
     except Exception as e:
         logger.error(f"DB get_trades_range error: {e}")
         return []
+
+def update_sl_order_id(symbol: str, sl_order_id: str) -> None:
+    """Aggiorna l'ID dell'ordine SL attivo nel DB dopo ogni modifica trailing."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE trades SET sl_order_id=%s WHERE symbol=%s AND status='open'",
+            (sl_order_id, symbol)
+        )
+        conn.commit()
+        release_db(conn)
+    except Exception as e:
+        logger.error(f"DB update_sl_order_id error: {e}")        
 
 def get_first_trade_date() -> str | None:
     """Restituisce la data del primo trade nel database."""

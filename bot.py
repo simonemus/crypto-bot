@@ -30,7 +30,7 @@ from database import (
     save_breakout, load_breakouts, clear_breakout, clear_all_breakouts,
     get_open_trades,
     save_decay_cooldown, load_decay_cooldowns, clear_decay_cooldown,
-    get_weekly_trades,
+    get_weekly_trades, update_sl_order_id,
 )
 
 # ── LOGGING ───────────────────────────────────────────────────
@@ -220,16 +220,21 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
         oco_side = "sell" if direction == "long" else "buy"
         oco = place_sl_tp_orders(exchange, symbol, oco_side, qty, tp, sl)
 
+        # Salva gli order_id di SL e TP
+        sl_order_id = str(oco.get("sl_order", {}).get("id", "")) or None
+        tp_order_id = str(oco.get("tp_order", {}).get("id", "")) or None
+
         open_trades[symbol] = {
-            "direction": direction,
-            "entry":     entry,
-            "sl":        sl,
-            "tp":        tp,
-            "qty":       qty,
-            "atr":       atr_val,
-            "order_id":  order.get("id"),
-            "oco_id":    oco.get("id"),
-            "pattern":   pattern,
+            "direction":   direction,
+            "entry":       entry,
+            "sl":          sl,
+            "tp":          tp,
+            "qty":         qty,
+            "atr":         atr_val,
+            "order_id":    order.get("id"),
+            "sl_order_id": sl_order_id,
+            "tp_order_id": tp_order_id,
+            "pattern":     pattern,
         }
         del breakout_seen[symbol]
         clear_breakout(symbol)
@@ -237,7 +242,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
         # Calcola e salva il buffer dinamico usato al momento del breakout
         atr_pct = atr_val / entry
         buf_used = round(max(0.0020, atr_pct * 1.5) * 100, 4)
-        log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=atr_val, breakout_buffer=buf_used)
+        log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=atr_val, breakout_buffer=buf_used, sl_order_id=sl_order_id, tp_order_id=tp_order_id)
         send_message(
             f"📈 Ordine aperto — {symbol}\n"
             f"Direzione: {direction.upper()}\n"
@@ -399,8 +404,13 @@ def update_trailing_stop(exchange, symbol: str, trade: dict) -> None:
                     new_sl = entry + profit_buffer
                     state["breakeven_hit"] = True
                     logger.info(f"{symbol} TRAILING — Breakeven attivato, SL → {new_sl:.4f}")
-                    _update_sl_order(exchange, symbol, new_sl, trade["qty"], direction)
-                    trade["sl"] = new_sl
+                    new_id = _update_sl_order(exchange, symbol, new_sl, trade["qty"], direction, old_sl_order_id=trade.get("sl_order_id"))
+                    if new_id:
+                        trade["sl"] = new_sl
+                        trade["sl_order_id"] = new_id
+                        update_sl_order_id(symbol, new_id)
+                    else:
+                        logger.error(f"{symbol} — breakeven LONG NON attivato, errore aggiornamento SL")
                     send_message(
                         f"🔒 Breakeven — {symbol} LONG\n"
                         f"SL spostato a: {new_sl:.4f} (+{profit_buffer:.2f} sopra entry)"
@@ -410,8 +420,13 @@ def update_trailing_stop(exchange, symbol: str, trade: dict) -> None:
                 if new_sl > trade["sl"]:
                     old_sl = trade["sl"]
                     logger.info(f"{symbol} TRAILING — SL aggiornato → {new_sl:.4f}")
-                    _update_sl_order(exchange, symbol, new_sl, trade["qty"], direction)
-                    trade["sl"] = new_sl
+                    new_id = _update_sl_order(exchange, symbol, new_sl, trade["qty"], direction, old_sl_order_id=trade.get("sl_order_id"))
+                    if new_id:
+                        trade["sl"] = new_sl
+                        trade["sl_order_id"] = new_id
+                        update_sl_order_id(symbol, new_id)
+                    else:
+                        logger.error(f"{symbol} — trailing LONG NON aggiornato, errore aggiornamento SL")
                     price = get_ticker_price(exchange, symbol)
                     pnl_pct = round((price - entry) / entry * 100, 2)
                     send_message(
@@ -431,8 +446,13 @@ def update_trailing_stop(exchange, symbol: str, trade: dict) -> None:
                     new_sl = entry - profit_buffer
                     state["breakeven_hit"] = True
                     logger.info(f"{symbol} TRAILING — Breakeven attivato, SL → {new_sl:.4f}")
-                    _update_sl_order(exchange, symbol, new_sl, trade["qty"], direction)
-                    trade["sl"] = new_sl
+                    new_id = _update_sl_order(exchange, symbol, new_sl, trade["qty"], direction, old_sl_order_id=trade.get("sl_order_id"))
+                    if new_id:
+                        trade["sl"] = new_sl
+                        trade["sl_order_id"] = new_id
+                        update_sl_order_id(symbol, new_id)
+                    else:
+                        logger.error(f"{symbol} — breakeven SHORT NON attivato, errore aggiornamento SL")
                     send_message(
                         f"🔒 Breakeven — {symbol} SHORT\n"
                         f"SL spostato a: {new_sl:.4f} (-{profit_buffer:.2f} sotto entry)"
@@ -442,8 +462,13 @@ def update_trailing_stop(exchange, symbol: str, trade: dict) -> None:
                 if new_sl < trade["sl"]:
                     old_sl = trade["sl"]
                     logger.info(f"{symbol} TRAILING — SL aggiornato → {new_sl:.4f}")
-                    _update_sl_order(exchange, symbol, new_sl, trade["qty"], direction)
-                    trade["sl"] = new_sl
+                    new_id = _update_sl_order(exchange, symbol, new_sl, trade["qty"], direction, old_sl_order_id=trade.get("sl_order_id"))
+                    if new_id:
+                        trade["sl"] = new_sl
+                        trade["sl_order_id"] = new_id
+                        update_sl_order_id(symbol, new_id)
+                    else:
+                        logger.error(f"{symbol} — trailing SHORT NON aggiornato, errore aggiornamento SL")
                     price = get_ticker_price(exchange, symbol)
                     pnl_pct = round((entry - price) / entry * 100, 2)
                     send_message(

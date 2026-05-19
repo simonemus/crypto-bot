@@ -526,29 +526,61 @@ def get_ticker_price(exchange: ccxt.binance, symbol: str) -> float:
     price = ticker.get("last") or ticker.get("ask") or ticker.get("close")
     return float(price)
 
-def _update_sl_order(exchange, symbol: str, new_sl: float, qty: float, direction: str) -> None:
+def _update_sl_order(exchange, symbol: str, new_sl: float, qty: float, direction: str, old_sl_order_id: str = None) -> str | None:
     """
-    Cancella il vecchio ordine STOP_MARKET e ne piazza uno nuovo con il nuovo SL.
-    direction: 'long' | 'short'
+    Cancella il vecchio SL per ID e piazza il nuovo.
+    Restituisce il nuovo order_id, oppure None se qualcosa va storto.
+    REGOLA: se la cancellazione fallisce, NON crea il nuovo SL.
     """
-    try:
-        side = "buy" if direction == "short" else "sell"
+    side = "sell" if direction == "long" else "buy"
+    raw_symbol = symbol.replace("/", "").replace(":USDT", "")
 
-        # Usa l'endpoint specifico per ordini aperti futures
+    # Step 1 — cancella il vecchio SL per ID
+    if old_sl_order_id:
         try:
-            open_orders = exchange.fapiPrivateGetOpenOrders({"symbol": symbol.replace("/", "").replace(":USDT", "")})
-            logger.info(f"Ordini aperti trovati: {len(open_orders)} — {[o.get('type') for o in open_orders]}")
+            exchange.cancel_order(str(old_sl_order_id), symbol)
+            logger.info(f"{symbol} — vecchio SL cancellato (id={old_sl_order_id})")
+        except Exception as e:
+            logger.error(f"{symbol} — ERRORE cancellazione vecchio SL (id={old_sl_order_id}): {e}")
+            return None
+    else:
+        # Nessun ID salvato — cerca per tipo come fallback
+        logger.warning(f"{symbol} — nessun sl_order_id salvato, cerco per tipo (fallback)")
+        try:
+            open_orders = exchange.fapiPrivateGetOpenOrders({"symbol": raw_symbol})
             for order in open_orders:
                 order_type = str(order.get("type", "")).lower()
                 order_id = order.get("orderId")
                 if "stop" in order_type and "take" not in order_type and order_id:
                     exchange.cancel_order(str(order_id), symbol)
-                    logger.info(f"Vecchio SL cancellato: {order_id} tipo={order_type}")
-        except Exception as fetch_err:
-            logger.warning(f"Errore fetch ordini aperti: {fetch_err}")
+                    logger.info(f"{symbol} — vecchio SL cancellato per tipo (id={order_id})")
+        except Exception as e:
+            logger.error(f"{symbol} — ERRORE cancellazione SL per tipo: {e}")
+            return None
 
-        # Piazza nuovo STOP_MARKET
-        exchange.create_order(
+    # Step 2 — verifica che non ci siano ancora SL aperti
+    try:
+        open_orders = exchange.fapiPrivateGetOpenOrders({"symbol": raw_symbol})
+        remaining = [
+            o for o in open_orders
+            if "stop" in str(o.get("type", "")).lower()
+            and "take" not in str(o.get("type", "")).lower()
+        ]
+        if remaining:
+            logger.error(f"{symbol} — {len(remaining)} SL ancora aperti dopo cancellazione!")
+            from telegram_bot import send_message
+            send_message(
+                f"🚨 ATTENZIONE — {symbol}\n"
+                f"Trovati {len(remaining)} SL aperti dopo cancellazione.\n"
+                f"Trailing stop bloccato per sicurezza."
+            )
+            return None
+    except Exception as e:
+        logger.warning(f"{symbol} — impossibile verificare ordini dopo cancellazione: {e}")
+
+    # Step 3 — piazza il nuovo SL
+    try:
+        new_order = exchange.create_order(
             symbol, "STOP_MARKET", side, qty,
             params={
                 "stopPrice": new_sl,
@@ -556,9 +588,12 @@ def _update_sl_order(exchange, symbol: str, new_sl: float, qty: float, direction
                 "workingType": "MARK_PRICE",
             }
         )
-        logger.info(f"Nuovo SL piazzato a {new_sl:.4f}")
+        new_id = str(new_order.get("id", ""))
+        logger.info(f"{symbol} — nuovo SL piazzato a {new_sl:.4f} (id={new_id})")
+        return new_id
     except Exception as e:
-        logger.error(f"Errore aggiornamento SL {symbol}: {e}")
+        logger.error(f"{symbol} — ERRORE piazzamento nuovo SL: {e}")
+        return None
 
 def set_leverage_all(exchange, symbols: list, leverage: int = 2) -> None:
     """
