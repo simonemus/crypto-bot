@@ -403,21 +403,32 @@ def calc_sl_tp(entry: float, direction: str, atr: float, rr: float) -> tuple[flo
 
 
 def calc_quantity(exchange, symbol: str, entry: float,
-                  sl: float, capital_usdt: float, margin_pct: float,
+                  sl: float, capital_usdt: float, risk_pct: float,
                   leverage: int = 2) -> float:
     """
-    Calcola la quantità in base al margine % e alla leva.
-    Margine 1% = 1% del capitale impegnato come margine
-    Con leva 2x: valore posizione = margine × leva
+    Calcola la quantità in base al rischio reale per trade.
+    Rischio 1% = perdi esattamente 1% del capitale se SL colpito.
+    Cap di sicurezza: margine mai superiore al 10% del capitale.
     """
-    # Margine impegnato = margin_pct% del capitale
-    margin = capital_usdt * (margin_pct / 100)
+    # Rischio reale in USDT
+    risk_usdt = capital_usdt * (risk_pct / 100)
 
-    # Valore posizione = margine × leva
-    position_value = margin * leverage
+    # Distanza SL in USDT
+    sl_dist = abs(entry - sl)
+    if sl_dist == 0:
+        return 0.0
 
-    # Quantità = valore posizione / prezzo entry
-    qty = position_value / entry
+    # Quantità = rischio / distanza SL
+    qty = risk_usdt / sl_dist
+
+    # Cap di sicurezza — margine massimo 10% del capitale
+    max_margin = capital_usdt * 0.10
+    max_position = max_margin * leverage
+    max_qty = max_position / entry
+
+    if qty > max_qty:
+        logger.warning(f"Quantità ridotta per cap margine: {qty:.6f} → {max_qty:.6f}")
+        qty = max_qty
 
     # Arrotonda alla precisione del mercato
     qty = float(exchange.amount_to_precision(symbol, qty))

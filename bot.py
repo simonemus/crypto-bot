@@ -196,7 +196,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
 
         # --- Dimensionamento posizione ---
         capital = get_balance_usdt(exchange)
-        qty = calc_quantity(exchange, symbol, entry, sl, capital, config.MARGIN_PER_TRADE_PCT)
+        qty = calc_quantity(exchange, symbol, entry, sl, capital, config.RISK_PER_TRADE_PCT)
         if qty <= 0:
             logger.warning(f"{symbol} — qty calcolata = 0, skip")
             return
