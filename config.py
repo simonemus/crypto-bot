@@ -83,3 +83,6 @@ LOG_FILE  = "bot.log"
 
 # ── NOTIFICHE PNL ─────────────────────────────────────────────
 PNL_NOTIFY_INTERVAL_MINUTES = 60   # Intervallo in minuti per notifica PnL automatica
+
+# ── NOTIFICHE AVVICINAMENTO PDH/PDL ──────────────────────────
+PROXIMITY_ALERT_PCT = 0.50   # % di distanza dal PDH/PDL per inviare notifica

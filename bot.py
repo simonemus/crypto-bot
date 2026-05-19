@@ -54,6 +54,7 @@ breakout_seen = {}   # {symbol: direction}  — breakout confermato, attesa rete
 last_pattern_candle = {}   # {symbol: timestamp}  — evita di controllare la stessa candela 5m due volte
 trailing_state = {}       # {symbol: {'breakeven_hit': bool, 'highest': float, 'lowest': float}}
 decay_cooldown = {}       # {symbol: timestamp} — cooldown dopo decadimento segnale
+proximity_alerted = {}    # {symbol: 'pdh'|'pdl'|None} — evita notifiche ripetute
 
 # ── UTILITÀ ORARIO ────────────────────────────────────────────
 
@@ -453,7 +454,49 @@ def update_trailing_stop(exchange, symbol: str, trade: dict) -> None:
                     )
 
     except Exception as e:
-        logger.error(f"Errore trailing stop {symbol}: {e}")            
+        logger.error(f"Errore trailing stop {symbol}: {e}")
+
+def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float) -> None:
+    """
+    Controlla se il prezzo si avvicina al PDH o PDL entro la soglia configurata.
+    Manda una notifica una sola volta per avvicinamento.
+    """
+    global proximity_alerted
+    from datetime import datetime, timezone, timedelta
+
+    try:
+        price = get_ticker_price(exchange, symbol)
+        now_it = datetime.now(timezone.utc) + timedelta(hours=2)
+        now_str = now_it.strftime("%d/%m/%Y %H:%M")
+        buf = config.PROXIMITY_ALERT_PCT / 100
+
+        dist_pdh = (pdh - price) / pdh
+        dist_pdl = (price - pdl) / pdl
+
+        if dist_pdh > 0 and dist_pdh < buf:
+            if proximity_alerted.get(symbol) != "pdh":
+                proximity_alerted[symbol] = "pdh"
+                send_message(
+                    f"⚡ {symbol} si avvicina al PDH\n"
+                    f"Live: {price:,.2f} — {now_str}\n"
+                    f"PDH: {pdh:,.2f}\n"
+                    f"Distanza: {round(dist_pdh * 100, 2)}%"
+                )
+        elif dist_pdl > 0 and dist_pdl < buf:
+            if proximity_alerted.get(symbol) != "pdl":
+                proximity_alerted[symbol] = "pdl"
+                send_message(
+                    f"⚡ {symbol} si avvicina al PDL\n"
+                    f"Live: {price:,.2f} — {now_str}\n"
+                    f"PDL: {pdl:,.2f}\n"
+                    f"Distanza: {round(dist_pdl * 100, 2)}%"
+                )
+        else:
+            # Prezzo lontano da entrambi i livelli — resetta l'alert
+            proximity_alerted[symbol] = None
+
+    except Exception as e:
+        logger.error(f"Errore check_proximity_alert {symbol}: {e}")                    
 
 def send_pnl_update(exchange) -> None:
     """Manda aggiornamento PnL delle posizioni aperte."""
@@ -611,6 +654,8 @@ def run_bot() -> None:
                 for symbol in config.SYMBOLS:
                     logger.info(f"Scansione — {symbol} — {now_utc().strftime('%H:%M:%S')} UTC")
                     scan_symbol(exchange, symbol, rr)
+                    pdh, pdl = get_previous_day_hl(exchange, symbol)
+                    check_proximity_alert(exchange, symbol, pdh, pdl)
                 monitor_open_trades(exchange)
             else:
                 # Fuori sessione: monitora solo eventuali trade aperti
