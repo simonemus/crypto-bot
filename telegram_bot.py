@@ -496,9 +496,9 @@ async def cmd_livelli(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
             lines.append(
                 f"*{symbol}*\n"
-                f"Live: `{price:.2f}` — {now_str}\n"
-                f"PDH: `{pdh:.4f}` — distanza `{dist_pdh}%`\n"
-                f"PDL: `{pdl:.4f}` — distanza `{dist_pdl}%`\n"
+                f"Live: `{price:.2f}` {now_str}\n"
+                f"PDH: `{pdh:.4f}` distanza `{dist_pdh}%`\n"
+                f"PDL: `{pdl:.4f}` distanza `{dist_pdl}%`\n"
                 f"Range: `{range_pct}%`\n"
                 f"ATR 15m: `{atr:.4f}` | Buffer: `{buffer}%`\n"
             )
