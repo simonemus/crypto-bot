@@ -282,7 +282,7 @@ def monitor_open_trades(exchange) -> None:
     for symbol, trade in open_trades.items():
         try:
             price = get_ticker_price(exchange, symbol)
-            update_trailing_stop(exchange, symbol, trade)
+            # update_trailing_stop(exchange, symbol, trade)  # DISABILITATO - bug su Binance demo
             direction = trade["direction"]
             hit = None
 
