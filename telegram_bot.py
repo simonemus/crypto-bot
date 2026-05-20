@@ -26,6 +26,10 @@ _bot_thread: threading.Thread | None = None
 _stop_callback = None    # funzione stop_bot() da bot.py
 _start_callback = None   # funzione run_bot() da bot.py
 
+# Riferimento all'Application Telegram attiva (per shutdown)
+_telegram_app = None
+_shutdown_event: threading.Event | None = None
+
 
 # ── INVIO MESSAGGI ────────────────────────────────────────────
 
@@ -59,6 +63,9 @@ def _message_worker():
     bot = loop.run_until_complete(_init())
     
     while True:
+        # Esci dal worker se lo shutdown è stato richiesto e la coda è vuota
+        if _shutdown_event is not None and _shutdown_event.is_set() and _message_queue.empty():
+            break
         try:
             text = _message_queue.get(timeout=1)
             async def _send(t):
@@ -704,8 +711,29 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 # ── AVVIO APPLICATION ─────────────────────────────────────────
 
-def start_telegram_bot() -> None:
+def shutdown_telegram_bot() -> None:
+    """Ferma il polling del bot Telegram in modo graceful."""
+    global _telegram_app
+    if _telegram_app is not None:
+        try:
+            import asyncio
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(_telegram_app.updater.stop())
+            loop.run_until_complete(_telegram_app.stop())
+            loop.run_until_complete(_telegram_app.shutdown())
+            loop.close()
+            logger.info("Telegram bot fermato correttamente.")
+        except Exception as e:
+            logger.warning(f"Errore durante lo shutdown del bot Telegram: {e}")
+
+
+def start_telegram_bot(shutdown_event: "threading.Event | None" = None) -> None:
+    global _telegram_app, _shutdown_event
+    _shutdown_event = shutdown_event
+
     app = ApplicationBuilder().token(config.TELEGRAM_BOT_TOKEN).build()
+    _telegram_app = app
+
     app.add_handler(CommandHandler("stats", cmd_stats))
     app.add_handler(CommandHandler("statsasset", cmd_stats_asset))
     app.add_handler(CommandHandler("statsdirection", cmd_stats_direction))
@@ -731,4 +759,9 @@ def start_telegram_bot() -> None:
     app.add_handler(CommandHandler("help",        cmd_help))
 
     logger.info("Telegram bot in ascolto…")
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling(drop_pending_updates=True, stop_signals=None)
+
+    # run_polling è uscito (shutdown richiesto) — segnala al processo principale
+    if shutdown_event is not None:
+        shutdown_event.set()
+    logger.info("Telegram bot polling terminato.")
