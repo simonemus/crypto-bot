@@ -568,14 +568,32 @@ async def cmd_livelli(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             atr_pct = atr / price
             buffer = round(max(0.0020, atr_pct * 1.5) * 100, 3)
 
-            dist_pdh = round(abs((pdh - price) / pdh * 100), 2)
-            dist_pdl = round(abs((price - pdl) / pdl * 100), 2)
+            # Calcola livelli di breakout
+            breakout_long = round(pdh * (1 + buffer / 100), 2)
+            breakout_short = round(pdl * (1 - buffer / 100), 2)
+
+            # Distanza dal prezzo live al livello di breakout
+            dist_to_breakout_long = round((breakout_long - price) / price * 100, 2)
+            dist_to_breakout_short = round((price - breakout_short) / price * 100, 2)
+
+            # Formato PDH
+            from bot import breakout_seen
+            if symbol in breakout_seen and breakout_seen[symbol] == "long":
+                pdh_str = f"`{pdh:.2f}` ✅ Breakout {breakout_long:.2f}"
+            else:
+                pdh_str = f"`{pdh:.2f}` Breakout: {breakout_long:.2f} | {dist_to_breakout_long}%"
+
+            # Formato PDL
+            if symbol in breakout_seen and breakout_seen[symbol] == "short":
+                pdl_str = f"`{pdl:.2f}` ✅ Breakout {breakout_short:.2f}"
+            else:
+                pdl_str = f"`{pdl:.2f}` Breakout: {breakout_short:.2f} | {dist_to_breakout_short}%"
 
             lines.append(
                 f"*{symbol}*\n"
                 f"Live: `{price:.2f}` {now_str}\n"
-                f"PDH: `{pdh:.4f}` {'🔴 ROTTO' if price > pdh else f'distanza `{dist_pdh}%`'}\n"
-                f"PDL: `{pdl:.4f}` {'🔴 ROTTO' if price < pdl else f'distanza `{dist_pdl}%`'}\n"
+                f"PDH: {pdh_str}\n"
+                f"PDL: {pdl_str}\n"
                 f"Range: `{range_pct}%`\n"
                 f"ATR 15m: `{atr:.4f}` | Buffer: `{buffer}%`\n"
             )
