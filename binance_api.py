@@ -450,10 +450,12 @@ def place_market_order(exchange: ccxt.binance, symbol: str,
 
 
 def place_sl_tp_orders(exchange, symbol: str, side: str,
-                       qty: float, tp: float, sl: float) -> dict:
+                       qty: float, tp: float, sl: float,
+                       callback_rate: float = 0.5) -> dict:
     """
-    Invia ordini separati TAKE_PROFIT_MARKET e STOP_MARKET per futures.
+    Invia ordini TAKE_PROFIT_MARKET e TRAILING_STOP_MARKET per futures.
     side: 'sell' per LONG, 'buy' per SHORT
+    callback_rate: % distanza trailing stop nativo Binance
     """
     results = {}
 
@@ -472,20 +474,20 @@ def place_sl_tp_orders(exchange, symbol: str, side: str,
     except Exception as e:
         logger.error(f"Errore TP order: {e}")
 
-    # Stop Loss
+    # Trailing Stop nativo Binance
     try:
-        sl_order = exchange.create_order(
-            symbol, "STOP_MARKET", side, qty,
+        trailing_order = exchange.create_order(
+            symbol, "TRAILING_STOP_MARKET", side, qty,
             params={
-                "stopPrice": sl,
+                "callbackRate": callback_rate,
                 "closePosition": True,
                 "workingType": "MARK_PRICE",
             }
         )
-        results["sl_order"] = sl_order
-        logger.info(f"SL order piazzato: {sl}")
+        results["sl_order"] = trailing_order
+        logger.info(f"Trailing Stop piazzato: callbackRate={callback_rate}%")
     except Exception as e:
-        logger.error(f"Errore SL order: {e}")
+        logger.error(f"Errore Trailing Stop order: {e}")
 
     return results
 
@@ -538,45 +540,6 @@ def get_ticker_price(exchange: ccxt.binance, symbol: str) -> float:
     price = ticker.get("last") or ticker.get("ask") or ticker.get("close")
     return float(price)
 
-def _update_sl_order(exchange, symbol: str, new_sl: float,
-                     qty: float, direction: str,
-                     old_sl_order_id: str = None) -> str | None:
-    side = "sell" if direction == "long" else "buy"
-
-    # Step 1 — cancella tutti gli ordini
-    try:
-        exchange.cancel_all_orders(symbol)
-        logger.info(f"{symbol} — tutti gli ordini cancellati")
-        time.sleep(2)
-    except Exception as e:
-        logger.error(f"{symbol} — ERRORE cancellazione ordini: {e}")
-        return None
-
-    # Step 2 — verifica che la posizione sia ancora aperta
-    try:
-        if not has_open_position(exchange, symbol):
-            logger.error(f"{symbol} — posizione non trovata dopo cancellazione, skip SL")
-            return None
-    except Exception as e:
-        logger.error(f"{symbol} — ERRORE verifica posizione: {e}")
-        return None
-
-    # Step 3 — piazza nuovo SL
-    try:
-        new_order = exchange.create_order(
-            symbol, "STOP_MARKET", side, qty,
-            params={
-                "stopPrice": new_sl,
-                "closePosition": True,
-                "workingType": "MARK_PRICE",
-            }
-        )
-        new_id = str(new_order.get("id", ""))
-        logger.info(f"{symbol} — nuovo SL piazzato a {new_sl:.4f} (id={new_id})")
-        return new_id
-    except Exception as e:
-        logger.error(f"{symbol} — ERRORE piazzamento nuovo SL: {e}")
-        return None
 
 def set_leverage_all(exchange, symbols: list, leverage: int = 2) -> None:
     """

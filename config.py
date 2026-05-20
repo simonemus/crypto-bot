@@ -51,8 +51,7 @@ MAX_MARGIN_PCT      = 10.0   # % massima del capitale usabile come margine per s
 SIGNAL_DECAY_BUFFER = 0.80   # % massima distanza dal livello rotto prima che il segnale decada
 
 # ── TRAILING STOP LOSS ────────────────────────────────────────
-TRAILING_BREAKEVEN_MULTIPLIER = 0.5   # ATR × 0.5 per attivare breakeven
-TRAILING_DISTANCE_MULTIPLIER  = 1.0   # ATR × 1.0 distanza trailing dopo breakeven
+TRAILING_CALLBACK_RATE = 0.5   # % distanza trailing stop nativo Binance
 
 # ── LIMITI OPERATIVI ─────────────────────────────────────────
 MAX_TRADES_PER_DAY_PER_ASSET = 1

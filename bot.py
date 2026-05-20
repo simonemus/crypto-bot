@@ -18,9 +18,8 @@ from binance_api import (
     place_market_order, place_sl_tp_orders,
     close_position_market, cancel_all_orders,
     get_balance_usdt, get_ticker_price,
-    _update_sl_order, check_signal_decay,
-    set_leverage_all, has_open_position,
-    get_exchange_with_retry,
+    check_signal_decay, set_leverage_all,
+    has_open_position, get_exchange_with_retry,
 )
 from telegram_bot import send_message, send_error
 from database import (
@@ -30,7 +29,7 @@ from database import (
     save_breakout, load_breakouts, clear_breakout, clear_all_breakouts,
     get_open_trades,
     save_decay_cooldown, load_decay_cooldowns, clear_decay_cooldown,
-    get_weekly_trades, update_sl_order_id, get_daily_pnl,
+    get_weekly_trades, get_daily_pnl,
     increment_filter_stat,
 )
 
@@ -54,7 +53,6 @@ BOT_RUNNING   = False
 open_trades   = {}   # {symbol: {direction, entry, sl, tp, qty, order_id}}
 breakout_seen = {}   # {symbol: direction}  — breakout confermato, attesa retest
 last_pattern_candle = {}   # {symbol: timestamp}  — evita di controllare la stessa candela 5m due volte
-trailing_state = {}       # {symbol: {'breakeven_hit': bool, 'highest': float, 'lowest': float}}
 decay_cooldown = {}       # {symbol: timestamp} — cooldown dopo decadimento segnale
 proximity_alerted = {}    # {symbol: 'pdh'|'pdl'|None} — evita notifiche ripetute
 daily_loss_blocked = False  # True se daily max loss raggiunto
@@ -231,13 +229,10 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
                 logger.info(f"{symbol} — posizione non aperta su Binance, skip")
                 return
 
-        # --- OCO per SL/TP ---
+        # --- TP + Trailing Stop nativo Binance ---
         oco_side = "sell" if direction == "long" else "buy"
-        oco = place_sl_tp_orders(exchange, symbol, oco_side, qty, tp, sl)
-
-        # Salva gli order_id di SL e TP
-        sl_order_id = str(oco.get("sl_order", {}).get("id", "")) or None
-        tp_order_id = str(oco.get("tp_order", {}).get("id", "")) or None
+        oco = place_sl_tp_orders(exchange, symbol, oco_side, qty, tp, sl,
+                                  callback_rate=config.TRAILING_CALLBACK_RATE)
 
         open_trades[symbol] = {
             "direction":   direction,
@@ -247,8 +242,6 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
             "qty":         qty,
             "atr":         atr_val,
             "order_id":    order.get("id"),
-            "sl_order_id": sl_order_id,
-            "tp_order_id": tp_order_id,
             "pattern":     pattern,
         }
         del breakout_seen[symbol]
@@ -257,7 +250,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
         # Calcola e salva il buffer dinamico usato al momento del breakout
         atr_pct = atr_val / entry
         buf_used = round(max(0.0020, atr_pct * 1.5) * 100, 4)
-        log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=atr_val, breakout_buffer=buf_used, sl_order_id=sl_order_id, tp_order_id=tp_order_id)
+        log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=atr_val, breakout_buffer=buf_used)
         increment_filter_stat(symbol, "trade_aperti")
         send_message(
             f"📈 Ordine aperto — {symbol}\n"
@@ -282,7 +275,6 @@ def monitor_open_trades(exchange) -> None:
     for symbol, trade in open_trades.items():
         try:
             price = get_ticker_price(exchange, symbol)
-            # update_trailing_stop(exchange, symbol, trade)  # DISABILITATO - bug su Binance demo
             direction = trade["direction"]
             hit = None
 
@@ -305,27 +297,20 @@ def monitor_open_trades(exchange) -> None:
                     pnl_pct = -pnl_pct
                 pnl_pct = round(pnl_pct, 2)
 
-                # Determina exit_reason in base a hit e trailing
-                state = trailing_state.get(symbol, {})
-                breakeven_hit = state.get("breakeven_hit", False)
-
+                # Determina exit_reason
                 if hit == "tp":
                     exit_reason = "tp"
                     msg = f"✅ Take Profit — {symbol}\nExit: {price:.4f} | PnL: +{pnl_pct}%"
                 elif hit == "sl":
-                    if breakeven_hit:
-                        if pnl_pct > 0:
-                            exit_reason = "trailing_win"
-                            msg = f"📈 Trailing Win — {symbol}\nExit: {price:.4f} | PnL: +{pnl_pct}%"
-                        elif pnl_pct < 0:
-                            exit_reason = "trailing_loss"
-                            msg = f"📉 Trailing Loss — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
-                        else:
-                            exit_reason = "breakeven"
-                            msg = f"⚖️ Breakeven — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
-                    else:
+                    if pnl_pct > 0:
+                        exit_reason = "trailing_win"
+                        msg = f"📈 Trailing Win — {symbol}\nExit: {price:.4f} | PnL: +{pnl_pct}%"
+                    elif pnl_pct < 0:
                         exit_reason = "sl"
                         msg = f"🔴 Stop Loss — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
+                    else:
+                        exit_reason = "breakeven"
+                        msg = f"⚖️ Breakeven — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
 
                 log_trade_close(symbol, price, exit_reason, pnl_pct, exit_reason=exit_reason)
                 to_remove.append(symbol)
@@ -347,8 +332,6 @@ def monitor_open_trades(exchange) -> None:
 
     for sym in to_remove:
         del open_trades[sym]
-        if sym in trailing_state:
-            del trailing_state[sym]
 
 
 def force_close_all(exchange) -> None:
@@ -395,123 +378,6 @@ def force_close_all(exchange) -> None:
                 del open_trades[symbol]
             clear_breakout(symbol)
 
-def update_trailing_stop(exchange, symbol: str, trade: dict) -> None:
-    """
-    Gestisce il trailing stop loss in due fasi:
-    Fase 1 — Breakeven: quando il prezzo supera entry ± ATR × 1.0
-              SL si sposta a entry ± ATR × 0.3 (piccolo profitto garantito)
-    Fase 2 — Trailing: lo SL segue il prezzo con distanza ATR × 1.0
-    """
-    global trailing_state
-
-    try:
-        price = get_ticker_price(exchange, symbol)
-        direction = trade["direction"]
-        entry = trade["entry"]
-        atr = trade.get("atr", 0)
-
-        if atr == 0:
-            return
-
-        breakeven_trigger = atr * config.TRAILING_BREAKEVEN_MULTIPLIER
-        trailing_dist = atr * config.TRAILING_DISTANCE_MULTIPLIER
-        profit_buffer = atr * 0.3
-
-        if symbol not in trailing_state:
-            trailing_state[symbol] = {
-                "breakeven_hit": False,
-                "highest": price if direction == "long" else float("inf"),
-                "lowest":  price if direction == "short" else float("inf"),
-            }
-
-        state = trailing_state[symbol]
-
-        if direction == "long":
-            if price > state["highest"]:
-                state["highest"] = price
-
-            if not state["breakeven_hit"]:
-                if price >= entry + breakeven_trigger:
-                    new_sl = entry + profit_buffer
-                    state["breakeven_hit"] = True
-                    logger.info(f"{symbol} TRAILING — Breakeven attivato, SL → {new_sl:.4f}")
-                    new_id = _update_sl_order(exchange, symbol, new_sl, trade["qty"], direction, old_sl_order_id=trade.get("sl_order_id"))
-                    if new_id:
-                        trade["sl"] = new_sl
-                        trade["sl_order_id"] = new_id
-                        update_sl_order_id(symbol, new_id)
-                    else:
-                        logger.error(f"{symbol} — breakeven LONG NON attivato, errore aggiornamento SL")
-                    send_message(
-                        f"🔒 Breakeven — {symbol} LONG\n"
-                        f"SL spostato a: {new_sl:.4f} (+{profit_buffer:.2f} sopra entry)"
-                    )
-            else:
-                new_sl = state["highest"] - trailing_dist
-                if new_sl > trade["sl"]:
-                    old_sl = trade["sl"]
-                    logger.info(f"{symbol} TRAILING — SL aggiornato → {new_sl:.4f}")
-                    new_id = _update_sl_order(exchange, symbol, new_sl, trade["qty"], direction, old_sl_order_id=trade.get("sl_order_id"))
-                    if new_id:
-                        trade["sl"] = new_sl
-                        trade["sl_order_id"] = new_id
-                        update_sl_order_id(symbol, new_id)
-                    else:
-                        logger.error(f"{symbol} — trailing LONG NON aggiornato, errore aggiornamento SL")
-                    price = get_ticker_price(exchange, symbol)
-                    pnl_pct = round((price - entry) / entry * 100, 2)
-                    send_message(
-                        f"📈 Trailing Stop aggiornato — {symbol} LONG\n"
-                        f"Nuovo SL: {new_sl:.4f}\n"
-                        f"Precedente SL: {old_sl:.4f}\n"
-                        f"Massimo raggiunto: {state['highest']:.4f}\n"
-                        f"PnL attuale: +{pnl_pct}%"
-                    )
-
-        else:  # short
-            if price < state["lowest"]:
-                state["lowest"] = price
-
-            if not state["breakeven_hit"]:
-                if price <= entry - breakeven_trigger:
-                    new_sl = entry - profit_buffer
-                    state["breakeven_hit"] = True
-                    logger.info(f"{symbol} TRAILING — Breakeven attivato, SL → {new_sl:.4f}")
-                    new_id = _update_sl_order(exchange, symbol, new_sl, trade["qty"], direction, old_sl_order_id=trade.get("sl_order_id"))
-                    if new_id:
-                        trade["sl"] = new_sl
-                        trade["sl_order_id"] = new_id
-                        update_sl_order_id(symbol, new_id)
-                    else:
-                        logger.error(f"{symbol} — breakeven SHORT NON attivato, errore aggiornamento SL")
-                    send_message(
-                        f"🔒 Breakeven — {symbol} SHORT\n"
-                        f"SL spostato a: {new_sl:.4f} (-{profit_buffer:.2f} sotto entry)"
-                    )
-            else:
-                new_sl = state["lowest"] + trailing_dist
-                if new_sl < trade["sl"]:
-                    old_sl = trade["sl"]
-                    logger.info(f"{symbol} TRAILING — SL aggiornato → {new_sl:.4f}")
-                    new_id = _update_sl_order(exchange, symbol, new_sl, trade["qty"], direction, old_sl_order_id=trade.get("sl_order_id"))
-                    if new_id:
-                        trade["sl"] = new_sl
-                        trade["sl_order_id"] = new_id
-                        update_sl_order_id(symbol, new_id)
-                    else:
-                        logger.error(f"{symbol} — trailing SHORT NON aggiornato, errore aggiornamento SL")
-                    price = get_ticker_price(exchange, symbol)
-                    pnl_pct = round((entry - price) / entry * 100, 2)
-                    send_message(
-                        f"📉 Trailing Stop aggiornato — {symbol} SHORT\n"
-                        f"Nuovo SL: {new_sl:.4f}\n"
-                        f"Precedente SL: {old_sl:.4f}\n"
-                        f"Minimo raggiunto: {state['lowest']:.4f}\n"
-                        f"PnL attuale: +{pnl_pct}%"
-                    )
-
-    except Exception as e:
-        logger.error(f"Errore trailing stop {symbol}: {e}")
 
 def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float) -> None:
     """

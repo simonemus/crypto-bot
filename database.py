@@ -344,22 +344,20 @@ def get_open_trades() -> list[dict]:
         conn = get_db()
         cur = conn.cursor()
         cur.execute(
-            "SELECT symbol, direction, entry, sl, tp, qty, pattern, atr, sl_order_id, tp_order_id FROM trades WHERE status='open'"
+            "SELECT symbol, direction, entry, sl, tp, qty, pattern, atr FROM trades WHERE status='open'"
         )
         rows = cur.fetchall()
         release_db(conn)
         return [
             {
-                "symbol":      r[0],
-                "direction":   r[1],
-                "entry":       float(r[2]),
-                "sl":          float(r[3]),
-                "tp":          float(r[4]),
-                "qty":         float(r[5]),
-                "pattern":     r[6],
-                "atr":         float(r[7]) if r[7] else 0.0,
-                "sl_order_id": r[8],
-                "tp_order_id": r[9],
+                "symbol":    r[0],
+                "direction": r[1],
+                "entry":     float(r[2]),
+                "sl":        float(r[3]),
+                "tp":        float(r[4]),
+                "qty":       float(r[5]),
+                "pattern":   r[6],
+                "atr":       float(r[7]) if r[7] else 0.0,
             }
             for r in rows
         ]
