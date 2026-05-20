@@ -474,20 +474,23 @@ def place_sl_tp_orders(exchange, symbol: str, side: str,
     except Exception as e:
         logger.error(f"Errore TP order: {e}")
 
-    # Trailing Stop nativo Binance
+    # Trailing Stop nativo Binance — endpoint Algo
     try:
-        trailing_order = exchange.create_order(
-            symbol, "TRAILING_STOP_MARKET", side, qty,
-            params={
-                "callbackRate": callback_rate,
-                "reduceOnly": True,
-                "workingType": "MARK_PRICE",
-            }
-        )
-        results["sl_order"] = trailing_order
-        logger.info(f"Trailing Stop piazzato: callbackRate={callback_rate}%")
+        raw_symbol = symbol.replace("/", "").replace(":USDT", "")
+        algo_order = exchange.fapiPrivatePostAlgoOrder({
+            "algoType": "CONDITIONAL",
+            "symbol": raw_symbol,
+            "side": side.upper(),
+            "type": "TRAILING_STOP_MARKET",
+            "quantity": str(qty),
+            "callbackRate": str(callback_rate),
+            "workingType": "MARK_PRICE",
+            "reduceOnly": "true",
+        })
+        results["sl_order"] = algo_order
+        logger.info(f"Trailing Stop Algo piazzato: callbackRate={callback_rate}% algoId={algo_order.get('algoId')}")
     except Exception as e:
-        logger.error(f"Errore Trailing Stop order: {e}")
+        logger.error(f"Errore Trailing Stop Algo order: {e}")
 
     return results
 

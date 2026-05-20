@@ -385,10 +385,9 @@ def force_close_all(exchange) -> None:
             clear_breakout(symbol)
 
 
-def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float) -> None:
+def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float, atr: float = 0) -> None:
     """
-    Controlla se il prezzo si avvicina al PDH o PDL entro la soglia configurata.
-    Manda una notifica una sola volta per avvicinamento.
+    Controlla se il prezzo si avvicina al livello di breakout entro la soglia configurata.
     """
     global proximity_alerted
     from datetime import datetime, timezone, timedelta
@@ -397,31 +396,40 @@ def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float) -> None
         price = get_ticker_price(exchange, symbol)
         now_it = datetime.now(timezone.utc) + timedelta(hours=2)
         now_str = now_it.strftime("%d/%m/%Y %H:%M")
+
+        # Calcola buffer dinamico ATR
+        atr_pct = atr / price if atr > 0 else 0
+        buffer_pct = max(0.0020, atr_pct * 1.5)
+
+        # Livelli di breakout
+        breakout_long = pdh * (1 + buffer_pct)
+        breakout_short = pdl * (1 - buffer_pct)
+
+        # Distanza dal prezzo live al livello di breakout
+        dist_to_long = (breakout_long - price) / price
+        dist_to_short = (price - breakout_short) / price
+
         buf = config.PROXIMITY_ALERT_PCT / 100
 
-        dist_pdh = (pdh - price) / pdh
-        dist_pdl = (price - pdl) / pdl
-
-        if dist_pdh > 0 and dist_pdh < buf:
+        if 0 < dist_to_long < buf:
             if proximity_alerted.get(symbol) != "pdh":
                 proximity_alerted[symbol] = "pdh"
                 send_message(
-                    f"⚡ {symbol} si avvicina al PDH\n"
+                    f"⚡ {symbol} si avvicina al Breakout LONG\n"
                     f"Live: {price:,.2f} — {now_str}\n"
-                    f"PDH: {pdh:,.2f}\n"
-                    f"Distanza: {round(dist_pdh * 100, 2)}%"
+                    f"Breakout da: {breakout_long:,.2f}\n"
+                    f"Manca: {round(dist_to_long * 100, 2)}%"
                 )
-        elif dist_pdl > 0 and dist_pdl < buf:
+        elif 0 < dist_to_short < buf:
             if proximity_alerted.get(symbol) != "pdl":
                 proximity_alerted[symbol] = "pdl"
                 send_message(
-                    f"⚡ {symbol} si avvicina al PDL\n"
+                    f"⚡ {symbol} si avvicina al Breakout SHORT\n"
                     f"Live: {price:,.2f} — {now_str}\n"
-                    f"PDL: {pdl:,.2f}\n"
-                    f"Distanza: {round(dist_pdl * 100, 2)}%"
+                    f"Breakout da: {breakout_short:,.2f}\n"
+                    f"Manca: {round(dist_to_short * 100, 2)}%"
                 )
-        elif dist_pdh > buf and dist_pdl > buf:
-            # Resetta solo se il prezzo è lontano da ENTRAMBI i livelli
+        elif dist_to_long > buf and dist_to_short > buf:
             proximity_alerted[symbol] = None
 
     except Exception as e:
@@ -590,7 +598,10 @@ def run_bot() -> None:
                     logger.info(f"Scansione — {symbol} — {now_utc().strftime('%H:%M:%S')} UTC")
                     scan_symbol(exchange, symbol, rr)
                     pdh, pdl = get_previous_day_hl(exchange, symbol)
-                    check_proximity_alert(exchange, symbol, pdh, pdl)
+                    df_15_prox = fetch_ohlcv(exchange, symbol, config.TF_SIGNAL, limit=20)
+                    df_15_prox = add_indicators(df_15_prox)
+                    atr_prox = float(df_15_prox.iloc[-2]["atr"])
+                    check_proximity_alert(exchange, symbol, pdh, pdl, atr_prox)
                 monitor_open_trades(exchange)
             else:
                 # Fuori sessione: monitora solo eventuali trade aperti
