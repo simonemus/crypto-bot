@@ -562,6 +562,7 @@ def _update_sl_order(exchange, symbol: str, new_sl: float, qty: float, direction
                     if "stop" in order_type and "take" not in order_type and order_id:
                         exchange.cancel_order(str(order_id), symbol)
                         logger.info(f"{symbol} — vecchio SL cancellato per tipo (id={order_id})")
+                        time.sleep(1)  # breve attesa per evitare problemi di sincronizzazione
             except Exception as e2:
                 logger.error(f"{symbol} — ERRORE fallback cancellazione SL: {e2}")
                 return None
