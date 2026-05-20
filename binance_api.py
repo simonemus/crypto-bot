@@ -480,7 +480,7 @@ def place_sl_tp_orders(exchange, symbol: str, side: str,
             symbol, "TRAILING_STOP_MARKET", side, qty,
             params={
                 "callbackRate": callback_rate,
-                "closePosition": True,
+                "reduceOnly": True,
                 "workingType": "MARK_PRICE",
             }
         )

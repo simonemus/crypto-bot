@@ -256,7 +256,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
             f"📈 Ordine aperto — {symbol}\n"
             f"Direzione: {direction.upper()}\n"
             f"Entry: {entry:.4f} | SL: {sl:.4f} | TP: {tp:.4f}\n"
-            f"Qty: {qty} | Pattern: {pattern}\n"
+            f"Qty: {qty} | Pattern: {pattern.replace('_', ' ')}\n"
             f"RR: {rr}"
         )
 
