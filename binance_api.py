@@ -537,77 +537,25 @@ def get_ticker_price(exchange: ccxt.binance, symbol: str) -> float:
     price = ticker.get("last") or ticker.get("ask") or ticker.get("close")
     return float(price)
 
-def _update_sl_order(exchange, symbol: str, new_sl: float, qty: float, direction: str, old_sl_order_id: str = None) -> str | None:
+def _update_sl_order(exchange, symbol: str, new_sl: float,
+                     qty: float, direction: str,
+                     old_sl_order_id: str = None) -> str | None:
     """
-    Cancella il vecchio SL per ID e piazza il nuovo.
-    Restituisce il nuovo order_id, oppure None se qualcosa va storto.
-    REGOLA: se la cancellazione fallisce, NON crea il nuovo SL.
+    Cancella tutti gli ordini aperti sul simbolo e piazza nuovo SL.
+    Restituisce il nuovo order_id oppure None se fallisce.
     """
     side = "sell" if direction == "long" else "buy"
-    raw_symbol = symbol.replace("/", "").replace(":USDT", "")
 
-    # Step 1 — cancella il vecchio SL per ID
-    if old_sl_order_id:
-        try:
-            exchange.cancel_order(str(old_sl_order_id), symbol)
-            logger.info(f"{symbol} — vecchio SL cancellato (id={old_sl_order_id})")
-        except Exception as e:
-            logger.error(f"{symbol} — ERRORE cancellazione vecchio SL (id={old_sl_order_id}): {e} — provo fallback per tipo")
-            # Fallback — cerca per tipo
-            try:
-                open_orders = exchange.fetch_open_orders(symbol)
-                logger.info(f"{symbol} — ordini aperti trovati: {[(o.get('id'), o.get('type')) for o in open_orders]}")
-                cancelled = False
-                for order in open_orders:
-                    order_type = str(order.get("type", "")).lower()
-                    order_id = order.get("id")
-                    if "stop_market" in order_type or order_type == "stop":
-                        exchange.cancel_order(str(order_id), symbol)
-                        logger.info(f"{symbol} — vecchio SL cancellato per tipo (id={order_id})")
-                        time.sleep(1)
-                        cancelled = True
-                if not cancelled:
-                    logger.warning(f"{symbol} — nessun SL trovato per tipo nel fallback")
-                    return None
-            except Exception as e2:
-                logger.error(f"{symbol} — ERRORE fallback cancellazione SL: {e2}")
-                return None
-    else:
-        # Nessun ID salvato — cerca per tipo come fallback
-        logger.warning(f"{symbol} — nessun sl_order_id salvato, cerco per tipo (fallback)")
-        try:
-            open_orders = exchange.fapiPrivateGetOpenOrders({"symbol": raw_symbol})
-            for order in open_orders:
-                order_type = str(order.get("type", "")).lower()
-                order_id = order.get("orderId")
-                if "stop" in order_type and "take" not in order_type and order_id:
-                    exchange.cancel_order(str(order_id), symbol)
-                    logger.info(f"{symbol} — vecchio SL cancellato per tipo (id={order_id})")
-        except Exception as e:
-            logger.error(f"{symbol} — ERRORE cancellazione SL per tipo: {e}")
-            return None
-
-    # Step 2 — verifica che non ci siano ancora SL aperti
+    # Step 1 — cancella tutti gli ordini aperti
     try:
-        open_orders = exchange.fapiPrivateGetOpenOrders({"symbol": raw_symbol})
-        remaining = [
-            o for o in open_orders
-            if "stop" in str(o.get("type", "")).lower()
-            and "take" not in str(o.get("type", "")).lower()
-        ]
-        if remaining:
-            logger.error(f"{symbol} — {len(remaining)} SL ancora aperti dopo cancellazione!")
-            from telegram_bot import send_message
-            send_message(
-                f"🚨 ATTENZIONE — {symbol}\n"
-                f"Trovati {len(remaining)} SL aperti dopo cancellazione.\n"
-                f"Trailing stop bloccato per sicurezza."
-            )
-            return None
+        exchange.cancel_all_orders(symbol)
+        logger.info(f"{symbol} — tutti gli ordini cancellati")
+        time.sleep(1)
     except Exception as e:
-        logger.warning(f"{symbol} — impossibile verificare ordini dopo cancellazione: {e}")
+        logger.error(f"{symbol} — ERRORE cancellazione ordini: {e}")
+        return None
 
-    # Step 3 — piazza il nuovo SL
+    # Step 2 — piazza nuovo SL
     try:
         new_order = exchange.create_order(
             symbol, "STOP_MARKET", side, qty,
