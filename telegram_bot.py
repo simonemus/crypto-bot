@@ -640,7 +640,31 @@ async def cmd_reset_cooldown_callback(update: Update, ctx: ContextTypes.DEFAULT_
     if symbol_match in decay_cooldown:
         del decay_cooldown[symbol_match]
     clear_decay_cooldown(symbol_match)
-    await query.edit_message_text(f"✅ Cooldown resettato per {symbol_match}.")            
+    await query.edit_message_text(f"✅ Cooldown resettato per {symbol_match}.")
+
+async def cmd_stats_filtri(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/statsfiltri — Statistiche filtri scansione per asset."""
+    from database import get_filter_stats
+    stats = get_filter_stats(days=30)
+
+    if not stats:
+        await update.message.reply_text("Nessun dato disponibile ancora.")
+        return
+
+    lines = ["📊 *Statistiche filtri scansione — ultimi 30 giorni*\n"]
+    for s in stats:
+        lines.append(
+            f"*{s['symbol']}*\n"
+            f"🔍 Breakout rilevati: {s['breakout_rilevati']}\n"
+            f"❌ Scartati per trend: {s['scartati_trend']}\n"
+            f"❌ Scartati per decadimento: {s['scartati_decadimento']}\n"
+            f"✅ Arrivati a retest: {s['arrivati_retest']}\n"
+            f"❌ Scartati per pattern: {s['scartati_pattern']}\n"
+            f"❌ Scartati per ATR: {s['scartati_atr']}\n"
+            f"📈 Trade aperti: {s['trade_aperti']}\n"
+        )
+
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)                
 
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/help — Mostra tutti i comandi disponibili."""
@@ -665,7 +689,8 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "/stats — Statistiche winrate per pattern\n"
         "/statsasset — Statistiche winrate per asset\n"
         "/statsdirection — Statistiche winrate per direzione\n"
-        "/statshour — Statistiche winrate per ora\n\n"
+        "/statshour — Statistiche winrate per ora\n"
+        "/statsfiltri — Statistiche filtri scansione\n\n"
         "⚙️ *Parametri*\n"
         "/parametri — Parametri correnti\n"
         "/set rr 2.5 — Modifica il Risk/Reward\n"
@@ -685,6 +710,7 @@ def start_telegram_bot() -> None:
     app.add_handler(CommandHandler("statsasset", cmd_stats_asset))
     app.add_handler(CommandHandler("statsdirection", cmd_stats_direction))
     app.add_handler(CommandHandler("statshour", cmd_stats_hour))
+    app.add_handler(CommandHandler("statsfiltri", cmd_stats_filtri))
     app.add_handler(CommandHandler("cooldown", cmd_cooldown))
     app.add_handler(CommandHandler("resetcooldown", cmd_reset_cooldown))
     app.add_handler(CallbackQueryHandler(cmd_reset_cooldown_callback, pattern="^reset_"))

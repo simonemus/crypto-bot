@@ -31,6 +31,7 @@ from database import (
     get_open_trades,
     save_decay_cooldown, load_decay_cooldowns, clear_decay_cooldown,
     get_weekly_trades, update_sl_order_id, get_daily_pnl,
+    increment_filter_stat,
 )
 
 # ── LOGGING ───────────────────────────────────────────────────
@@ -139,8 +140,11 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
 
             if not trend_ok(df_15, direction):
                 logger.info(f"{symbol} breakout {direction} — filtro TREND fallito")
+                increment_filter_stat(symbol, "breakout_rilevati")
+                increment_filter_stat(symbol, "scartati_trend")
                 return
 
+            increment_filter_stat(symbol, "breakout_rilevati")
             breakout_seen[symbol] = direction
             save_breakout(symbol, direction)
             send_message(
@@ -162,6 +166,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
             clear_breakout(symbol)
             decay_cooldown[symbol] = now_utc()
             save_decay_cooldown(symbol)
+            increment_filter_stat(symbol, "scartati_decadimento")
             send_message(f"⚠️ Segnale decaduto — {symbol}\nIl prezzo si è allontanato troppo dal livello rotto.")
             return
 
@@ -171,6 +176,8 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
 
         if not check_retest(df_5, pdh, pdl, direction):
             return
+
+        increment_filter_stat(symbol, "arrivati_retest")
 
         # --- Pattern candele su 5m ---
         last_candle_time = df_5.index[-2]
@@ -189,6 +196,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
                 f"  candela precedente: open={prev['open']:.4f} high={prev['high']:.4f} "
                 f"low={prev['low']:.4f} close={prev['close']:.4f}"
             )
+            increment_filter_stat(symbol, "scartati_pattern")
             return
 
         # --- Calcolo entry / SL / TP ---
@@ -198,6 +206,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
 
         if not atr_ok(df_15, entry, sl):
             logger.info(f"{symbol} — filtro ATR fallito (SL troppo lontano)")
+            increment_filter_stat(symbol, "scartati_atr")
             return
 
         # --- Dimensionamento posizione ---
@@ -249,6 +258,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
         atr_pct = atr_val / entry
         buf_used = round(max(0.0020, atr_pct * 1.5) * 100, 4)
         log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=atr_val, breakout_buffer=buf_used, sl_order_id=sl_order_id, tp_order_id=tp_order_id)
+        increment_filter_stat(symbol, "trade_aperti")
         send_message(
             f"📈 Ordine aperto — {symbol}\n"
             f"Direzione: {direction.upper()}\n"

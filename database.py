@@ -95,6 +95,20 @@ def init_db():
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS sl_order_id text;
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS tp_order_id text;
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS exit_reason text;
+
+            CREATE TABLE IF NOT EXISTS filter_stats (
+                id bigserial primary key,
+                symbol text not null,
+                date date not null,
+                breakout_rilevati int default 0,
+                scartati_trend int default 0,
+                scartati_decadimento int default 0,
+                arrivati_retest int default 0,
+                scartati_pattern int default 0,
+                scartati_atr int default 0,
+                trade_aperti int default 0,
+                UNIQUE(symbol, date)
+            );
         """)
         conn.commit()
         release_db(conn)
@@ -636,6 +650,61 @@ def get_trades_range(start_date: str, end_date: str) -> list[dict]:
     except Exception as e:
         logger.error(f"DB get_trades_range error: {e}")
         return []
+
+def increment_filter_stat(symbol: str, field: str) -> None:
+    """Incrementa di 1 un contatore nella tabella filter_stats per oggi."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(f"""
+            INSERT INTO filter_stats (symbol, date, {field})
+            VALUES (%s, %s, 1)
+            ON CONFLICT (symbol, date) DO UPDATE
+            SET {field} = filter_stats.{field} + 1
+        """, (symbol, _today_str()))
+        conn.commit()
+        release_db(conn)
+    except Exception as e:
+        logger.error(f"DB increment_filter_stat error: {e}")
+
+def get_filter_stats(days: int = 30) -> list[dict]:
+    """Restituisce le statistiche filtri per asset degli ultimi N giorni."""
+    try:
+        since = (date.today() - timedelta(days=days)).isoformat()
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT symbol,
+                SUM(breakout_rilevati) as breakout_rilevati,
+                SUM(scartati_trend) as scartati_trend,
+                SUM(scartati_decadimento) as scartati_decadimento,
+                SUM(arrivati_retest) as arrivati_retest,
+                SUM(scartati_pattern) as scartati_pattern,
+                SUM(scartati_atr) as scartati_atr,
+                SUM(trade_aperti) as trade_aperti
+            FROM filter_stats
+            WHERE date >= %s
+            GROUP BY symbol
+            ORDER BY symbol
+        """, (since,))
+        rows = cur.fetchall()
+        release_db(conn)
+        return [
+            {
+                "symbol":               r[0],
+                "breakout_rilevati":    int(r[1] or 0),
+                "scartati_trend":       int(r[2] or 0),
+                "scartati_decadimento": int(r[3] or 0),
+                "arrivati_retest":      int(r[4] or 0),
+                "scartati_pattern":     int(r[5] or 0),
+                "scartati_atr":         int(r[6] or 0),
+                "trade_aperti":         int(r[7] or 0),
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        logger.error(f"DB get_filter_stats error: {e}")
+        return []        
 
 def update_sl_order_id(symbol: str, sl_order_id: str) -> None:
     """Aggiorna l'ID dell'ordine SL attivo nel DB dopo ogni modifica trailing."""
