@@ -9,6 +9,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 import signal
 import sys
 import threading
+import os
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 import config
@@ -78,5 +79,7 @@ if __name__ == "__main__":
     print(f"   Asset: {', '.join(config.SYMBOLS)}")
     print(f"   Usa /start su Telegram per avviare il trading.\n")
 
-    _start_health_server(port=8000)
+    # Usa la variabile PORT di Railway, altrimenti default a 8000
+    port = int(os.environ.get("PORT", "8000"))
+    _start_health_server(port=port)
     start_telegram_bot(shutdown_event=SHUTDOWN_EVENT)
