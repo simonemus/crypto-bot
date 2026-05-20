@@ -541,22 +541,27 @@ def get_ticker_price(exchange: ccxt.binance, symbol: str) -> float:
 def _update_sl_order(exchange, symbol: str, new_sl: float,
                      qty: float, direction: str,
                      old_sl_order_id: str = None) -> str | None:
-    """
-    Cancella tutti gli ordini aperti sul simbolo e piazza nuovo SL.
-    Restituisce il nuovo order_id oppure None se fallisce.
-    """
     side = "sell" if direction == "long" else "buy"
 
-    # Step 1 — cancella tutti gli ordini aperti
+    # Step 1 — cancella tutti gli ordini
     try:
         exchange.cancel_all_orders(symbol)
         logger.info(f"{symbol} — tutti gli ordini cancellati")
-        time.sleep(1)
+        time.sleep(2)
     except Exception as e:
         logger.error(f"{symbol} — ERRORE cancellazione ordini: {e}")
         return None
 
-    # Step 2 — piazza nuovo SL
+    # Step 2 — verifica che la posizione sia ancora aperta
+    try:
+        if not has_open_position(exchange, symbol):
+            logger.error(f"{symbol} — posizione non trovata dopo cancellazione, skip SL")
+            return None
+    except Exception as e:
+        logger.error(f"{symbol} — ERRORE verifica posizione: {e}")
+        return None
+
+    # Step 3 — piazza nuovo SL
     try:
         new_order = exchange.create_order(
             symbol, "STOP_MARKET", side, qty,
