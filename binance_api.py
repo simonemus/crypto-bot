@@ -556,6 +556,7 @@ def _update_sl_order(exchange, symbol: str, new_sl: float, qty: float, direction
             # Fallback — cerca per tipo
             try:
                 open_orders = exchange.fapiPrivateGetOpenOrders({"symbol": raw_symbol})
+                logger.info(f"{symbol} — ordini aperti trovati: {[(o.get('orderId'), o.get('type')) for o in open_orders]}")
                 for order in open_orders:
                     order_type = str(order.get("type", "")).lower()
                     order_id = order.get("orderId")
