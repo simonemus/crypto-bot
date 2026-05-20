@@ -224,7 +224,7 @@ def _format_report(trades, titolo, show_equity=False):
         f"✅ TP: {tp} | 🔴 SL: {sl}",
         f"📈 Trailing Win: {trailing_win} | 📉 Trailing Loss: {trailing_loss}",
         f"⚖️ Breakeven: {breakeven}",
-        f"⚠️ Force Close Win: {fc_win} | Force Close Loss: {fc_loss}",
+        f"⚠️ Force Win: {fc_win} | Force Loss: {fc_loss}",
         f"Win rate: {winrate}%",
         f"PnL medio: {sign_medio}{pnl_medio}%",
         f"PnL totale: {sign_total}{pnl_total}%",
