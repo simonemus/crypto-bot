@@ -568,14 +568,14 @@ async def cmd_livelli(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             atr_pct = atr / price
             buffer = round(max(0.0020, atr_pct * 1.5) * 100, 3)
 
-            dist_pdh = round((pdh - price) / pdh * 100, 2)
-            dist_pdl = round((price - pdl) / pdl * 100, 2)
+            dist_pdh = round(abs((pdh - price) / pdh * 100), 2)
+            dist_pdl = round(abs((price - pdl) / pdl * 100), 2)
 
             lines.append(
                 f"*{symbol}*\n"
                 f"Live: `{price:.2f}` {now_str}\n"
-                f"PDH: `{pdh:.4f}` distanza `{dist_pdh}%`\n"
-                f"PDL: `{pdl:.4f}` distanza `{dist_pdl}%`\n"
+                f"PDH: `{pdh:.4f}` {'🔴 ROTTO' if price > pdh else f'distanza `{dist_pdh}%`'}\n"
+                f"PDL: `{pdl:.4f}` {'🔴 ROTTO' if price < pdl else f'distanza `{dist_pdl}%`'}\n"
                 f"Range: `{range_pct}%`\n"
                 f"ATR 15m: `{atr:.4f}` | Buffer: `{buffer}%`\n"
             )
