@@ -552,8 +552,19 @@ def _update_sl_order(exchange, symbol: str, new_sl: float, qty: float, direction
             exchange.cancel_order(str(old_sl_order_id), symbol)
             logger.info(f"{symbol} — vecchio SL cancellato (id={old_sl_order_id})")
         except Exception as e:
-            logger.error(f"{symbol} — ERRORE cancellazione vecchio SL (id={old_sl_order_id}): {e}")
-            return None
+            logger.error(f"{symbol} — ERRORE cancellazione vecchio SL (id={old_sl_order_id}): {e} — provo fallback per tipo")
+            # Fallback — cerca per tipo
+            try:
+                open_orders = exchange.fapiPrivateGetOpenOrders({"symbol": raw_symbol})
+                for order in open_orders:
+                    order_type = str(order.get("type", "")).lower()
+                    order_id = order.get("orderId")
+                    if "stop" in order_type and "take" not in order_type and order_id:
+                        exchange.cancel_order(str(order_id), symbol)
+                        logger.info(f"{symbol} — vecchio SL cancellato per tipo (id={order_id})")
+            except Exception as e2:
+                logger.error(f"{symbol} — ERRORE fallback cancellazione SL: {e2}")
+                return None
     else:
         # Nessun ID salvato — cerca per tipo come fallback
         logger.warning(f"{symbol} — nessun sl_order_id salvato, cerco per tipo (fallback)")
