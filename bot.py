@@ -414,8 +414,8 @@ def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float) -> None
                     f"PDL: {pdl:,.2f}\n"
                     f"Distanza: {round(dist_pdl * 100, 2)}%"
                 )
-        else:
-            # Prezzo lontano da entrambi i livelli — resetta l'alert
+        elif dist_pdh > buf and dist_pdl > buf:
+            # Resetta solo se il prezzo è lontano da ENTRAMBI i livelli
             proximity_alerted[symbol] = None
 
     except Exception as e:
