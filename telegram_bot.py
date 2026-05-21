@@ -199,7 +199,7 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "force_close_loss":"⚠️",
         }.get(reason, "•")
         lines.append(
-            f"{emoji} {t['symbol']} {t.get('direction','').upper()} — {reason}"
+            f"{emoji} {t['symbol']} {t.get('direction','').upper()} — {reason.replace('_', ' ')}"
         )
 
     await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
