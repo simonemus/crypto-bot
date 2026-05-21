@@ -468,7 +468,7 @@ def send_pnl_update(exchange) -> None:
                 f"Entry: `{trade['entry']:.4f}` | Live: `{price:.4f}`\n"
                 f"PnL: `{sign}{pnl_pct}%`\n"
                 f"SL: `{trade['sl']:.4f}` | TP: `{trade['tp']:.4f}`\n"
-                f"Pattern: `{trade.get('pattern', 'N/D')}`"
+                f"Pattern: `{trade.get('pattern', 'N/D').replace('_', ' ')}`"
             )
         send_message("\n".join(lines))
     except Exception as e:
