@@ -782,12 +782,18 @@ async def cmd_set_trailing_callback(update: Update, ctx: ContextTypes.DEFAULT_TY
         asset = query.data.replace("settrailing_asset_", "")
         symbol = f"{asset}/USDT"
         current = get_config_param(f"trailing_{symbol}") or config.TRAILING_CALLBACK_RATE.get(symbol, 0.5)
-        keyboard = [[
-            InlineKeyboardButton("0.5%", callback_data=f"settrailing_val_{asset}_0.5"),
-            InlineKeyboardButton("1.0%", callback_data=f"settrailing_val_{asset}_1.0"),
-            InlineKeyboardButton("1.5%", callback_data=f"settrailing_val_{asset}_1.5"),
-            InlineKeyboardButton("2.0%", callback_data=f"settrailing_val_{asset}_2.0"),
-        ]]
+        keyboard = [
+            [
+                InlineKeyboardButton("0.5%", callback_data=f"settrailing_val_{asset}_0.5"),
+                InlineKeyboardButton("0.8%", callback_data=f"settrailing_val_{asset}_0.8"),
+                InlineKeyboardButton("1.0%", callback_data=f"settrailing_val_{asset}_1.0"),
+            ],
+            [
+                InlineKeyboardButton("1.5%", callback_data=f"settrailing_val_{asset}_1.5"),
+                InlineKeyboardButton("2.0%", callback_data=f"settrailing_val_{asset}_2.0"),
+                InlineKeyboardButton("2.5%", callback_data=f"settrailing_val_{asset}_2.5"),
+            ]
+        ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(
             f"📊 *Trailing {asset} attuale: {current}%*\nSeleziona il nuovo valore:",
