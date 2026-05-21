@@ -725,7 +725,22 @@ def update_sl_order_id(symbol: str, sl_order_id: str) -> None:
         conn.commit()
         release_db(conn)
     except Exception as e:
-        logger.error(f"DB update_sl_order_id error: {e}")        
+        logger.error(f"DB update_sl_order_id error: {e}") 
+
+def reset_db() -> None:
+    """Cancella tutti i dati da trades, equity, filter_stats, signals."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM trades")
+        cur.execute("DELETE FROM equity")
+        cur.execute("DELETE FROM filter_stats")
+        cur.execute("DELETE FROM signals")
+        conn.commit()
+        release_db(conn)
+        logger.info("DB resettato completamente")
+    except Exception as e:
+        logger.error(f"DB reset_db error: {e}")               
 
 def get_first_trade_date() -> str | None:
     """Restituisce la data del primo trade nel database."""

@@ -17,6 +17,7 @@ import config
 from database import (
     get_config_param, set_config_param,
     get_today_trades, get_equity_history,
+    reset_db,
 )
 
 logger = logging.getLogger(__name__)
@@ -808,7 +809,31 @@ async def cmd_set_trailing_callback(update: Update, ctx: ContextTypes.DEFAULT_TY
         set_config_param(f"trailing_{symbol}", val)
         await query.edit_message_text(
             f"✅ Trailing {asset} aggiornato a `{val}%`", parse_mode=ParseMode.MARKDOWN
-        )                    
+        )   
+
+async def cmd_reset_db(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/resetdb — Resetta tutti i dati del DB con conferma."""
+    keyboard = [[
+        InlineKeyboardButton("✅ Conferma", callback_data="resetdb_confirm"),
+        InlineKeyboardButton("❌ Annulla", callback_data="resetdb_cancel"),
+    ]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        "⚠️ *Attenzione!*\nQuesta operazione cancella tutti i trade, equity, segnali e statistiche.\n\nSei sicuro?",
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+async def cmd_reset_db_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Gestisce la conferma del reset DB."""
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "resetdb_confirm":
+        reset_db()
+        await query.edit_message_text("✅ Database resettato correttamente.")
+    else:
+        await query.edit_message_text("❌ Reset annullato.")                         
 
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/help — Mostra tutti i comandi disponibili."""
@@ -886,6 +911,8 @@ def start_telegram_bot(shutdown_event: "threading.Event | None" = None) -> None:
     app.add_handler(CallbackQueryHandler(cmd_set_maxloss_callback, pattern="^setmaxloss_"))
     app.add_handler(CommandHandler("settrailing", cmd_set_trailing))
     app.add_handler(CallbackQueryHandler(cmd_set_trailing_callback, pattern="^settrailing_"))
+    app.add_handler(CommandHandler("resetdb", cmd_reset_db))
+    app.add_handler(CallbackQueryHandler(cmd_reset_db_callback, pattern="^resetdb_"))
 
     app.add_handler(CommandHandler("start",       cmd_start))
     app.add_handler(CommandHandler("stop",        cmd_stop))
