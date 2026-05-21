@@ -25,7 +25,7 @@ from telegram_bot import send_message, send_error
 from database import (
     log_signal, log_trade_open, log_trade_close,
     log_equity, get_config_param, set_config_param,
-    get_daily_trade_count, get_open_trade,
+    get_daily_trade_count,
     save_breakout, load_breakouts, clear_breakout, clear_all_breakouts,
     get_open_trades,
     save_decay_cooldown, load_decay_cooldowns, clear_decay_cooldown,
@@ -320,12 +320,15 @@ def monitor_open_trades(exchange) -> None:
                     exit_reason = "tp"
                     msg = f"✅ Take Profit — {symbol}\nExit: {price:.4f} | PnL: +{pnl_pct}%"
                 elif hit == "sl":
+                    exit_reason = "sl"
+                    msg = f"🔴 Stop Loss — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
+                elif hit == "closed_by_binance":
                     if pnl_pct > 0:
                         exit_reason = "trailing_win"
                         msg = f"📈 Trailing Win — {symbol}\nExit: {price:.4f} | PnL: +{pnl_pct}%"
                     elif pnl_pct < 0:
-                        exit_reason = "sl"
-                        msg = f"🔴 Stop Loss — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
+                        exit_reason = "trailing_loss"
+                        msg = f"📉 Trailing Loss — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
                     else:
                         exit_reason = "breakeven"
                         msg = f"⚖️ Breakeven — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
@@ -518,7 +521,7 @@ def send_evening_report(exchange) -> None:
 
 def run_bot() -> None:
     """Loop principale del bot — chiama start() da telegram_bot.py."""
-    global BOT_RUNNING, breakout_seen, decay_cooldown
+    global BOT_RUNNING, breakout_seen, decay_cooldown, daily_loss_blocked
     BOT_RUNNING = True
     breakout_seen = load_breakouts()
     logger.info(f"Breakout caricati dal DB: {breakout_seen}")
@@ -557,6 +560,7 @@ def run_bot() -> None:
             # Reset giornaliero
             if now.hour == 0 and now.minute < 2:
                 breakout_seen = {}
+                last_pattern_candle.clear()
                 clear_all_breakouts()
                 report_sent_today = False
                 force_closed_today = False
