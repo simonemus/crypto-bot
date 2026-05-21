@@ -712,7 +712,97 @@ async def cmd_stats_filtri(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> No
             f"📈 Trade aperti: {s['trade_aperti']}\n"
         )
 
-    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)                
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
+
+async def cmd_set_rr(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/setrr — Imposta il Risk/Reward con pulsanti."""
+    keyboard = [[
+        InlineKeyboardButton("1.5", callback_data="setrr_1.5"),
+        InlineKeyboardButton("2.0", callback_data="setrr_2.0"),
+        InlineKeyboardButton("2.5", callback_data="setrr_2.5"),
+        InlineKeyboardButton("3.0", callback_data="setrr_3.0"),
+    ]]
+    rr_attuale = get_config_param("rr") or config.RISK_REWARD_RATIO
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        f"📊 *Risk/Reward attuale: {rr_attuale}*\nSeleziona il nuovo valore:",
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+async def cmd_set_rr_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    val = query.data.replace("setrr_", "")
+    set_config_param("rr", val)
+    await query.edit_message_text(f"✅ RR aggiornato a `{val}`", parse_mode=ParseMode.MARKDOWN)
+
+async def cmd_set_maxloss(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/setmaxloss — Imposta il daily max loss con pulsanti."""
+    keyboard = [[
+        InlineKeyboardButton("1.0%", callback_data="setmaxloss_1.0"),
+        InlineKeyboardButton("2.0%", callback_data="setmaxloss_2.0"),
+        InlineKeyboardButton("3.0%", callback_data="setmaxloss_3.0"),
+        InlineKeyboardButton("4.0%", callback_data="setmaxloss_4.0"),
+    ]]
+    ml_attuale = get_config_param("max_loss") or config.DAILY_MAX_LOSS_PCT
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        f"📊 *Daily max loss attuale: {ml_attuale}%*\nSeleziona il nuovo valore:",
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+async def cmd_set_maxloss_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    val = query.data.replace("setmaxloss_", "")
+    set_config_param("max_loss", val)
+    await query.edit_message_text(f"✅ Daily max loss aggiornato a `{val}%`", parse_mode=ParseMode.MARKDOWN)
+
+async def cmd_set_trailing(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/settrailing — Imposta il trailing stop per asset con pulsanti."""
+    keyboard = [[
+        InlineKeyboardButton("BTC", callback_data="settrailing_asset_BTC"),
+        InlineKeyboardButton("ETH", callback_data="settrailing_asset_ETH"),
+        InlineKeyboardButton("SOL", callback_data="settrailing_asset_SOL"),
+    ]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        "📊 *Seleziona l'asset per il trailing stop:*",
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+async def cmd_set_trailing_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+
+    if query.data.startswith("settrailing_asset_"):
+        asset = query.data.replace("settrailing_asset_", "")
+        symbol = f"{asset}/USDT"
+        current = get_config_param(f"trailing_{symbol}") or config.TRAILING_CALLBACK_RATE.get(symbol, 0.5)
+        keyboard = [[
+            InlineKeyboardButton("0.5%", callback_data=f"settrailing_val_{asset}_0.5"),
+            InlineKeyboardButton("1.0%", callback_data=f"settrailing_val_{asset}_1.0"),
+            InlineKeyboardButton("1.5%", callback_data=f"settrailing_val_{asset}_1.5"),
+            InlineKeyboardButton("2.0%", callback_data=f"settrailing_val_{asset}_2.0"),
+        ]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(
+            f"📊 *Trailing {asset} attuale: {current}%*\nSeleziona il nuovo valore:",
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.MARKDOWN
+        )
+    elif query.data.startswith("settrailing_val_"):
+        parts = query.data.replace("settrailing_val_", "").split("_")
+        asset = parts[0]
+        val = parts[1]
+        symbol = f"{asset}/USDT"
+        set_config_param(f"trailing_{symbol}", val)
+        await query.edit_message_text(
+            f"✅ Trailing {asset} aggiornato a `{val}%`", parse_mode=ParseMode.MARKDOWN
+        )                    
 
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/help — Mostra tutti i comandi disponibili."""
@@ -741,9 +831,9 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "/statsfiltri — Statistiche filtri scansione\n\n"
         "⚙️ *Parametri*\n"
         "/parametri — Parametri correnti\n"
-        "/set rr 2.5 — Modifica il Risk/Reward\n"
-        "/set maxloss 2.0 — Modifica il daily max loss\n"
-        "/set trailing BTC 0.5 — Modifica il trailing stop per asset\n\n"
+        "/setrr — Modifica il Risk/Reward\n"
+        "/setmaxloss — Modifica il daily max loss\n"
+        "/settrailing — Modifica il trailing stop per asset\n\n"
         "🔧 *Altro*\n"
         "/test — Notifica di prova\n"
         "/help — Mostra questo messaggio"
@@ -784,6 +874,12 @@ def start_telegram_bot(shutdown_event: "threading.Event | None" = None) -> None:
     app.add_handler(CommandHandler("cooldown", cmd_cooldown))
     app.add_handler(CommandHandler("resetcooldown", cmd_reset_cooldown))
     app.add_handler(CallbackQueryHandler(cmd_reset_cooldown_callback, pattern="^reset_"))
+    app.add_handler(CommandHandler("setrr", cmd_set_rr))
+    app.add_handler(CallbackQueryHandler(cmd_set_rr_callback, pattern="^setrr_"))
+    app.add_handler(CommandHandler("setmaxloss", cmd_set_maxloss))
+    app.add_handler(CallbackQueryHandler(cmd_set_maxloss_callback, pattern="^setmaxloss_"))
+    app.add_handler(CommandHandler("settrailing", cmd_set_trailing))
+    app.add_handler(CallbackQueryHandler(cmd_set_trailing_callback, pattern="^settrailing_"))
 
     app.add_handler(CommandHandler("start",       cmd_start))
     app.add_handler(CommandHandler("stop",        cmd_stop))
