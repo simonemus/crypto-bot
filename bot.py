@@ -291,6 +291,14 @@ def monitor_open_trades(exchange) -> None:
                 elif price <= trade["tp"]:
                     hit = "tp"
 
+            # Dopo 5 minuti dall'apertura controlla se Binance ha chiuso la posizione
+            if hit is None:
+                if "opened_at_dt" not in trade:
+                    trade["opened_at_dt"] = now_utc()
+                trade_age = (now_utc() - trade["opened_at_dt"]).total_seconds()
+                if trade_age > 300 and not has_open_position(exchange, symbol):
+                    hit = "closed_by_binance"
+
             if hit:
                 # Cancella ordini e chiudi posizione — ignora errori se Binance ha già chiuso
                 try:
