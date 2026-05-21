@@ -51,7 +51,12 @@ MAX_MARGIN_PCT      = 10.0   # % massima del capitale usabile come margine per s
 SIGNAL_DECAY_BUFFER = 0.80   # % massima distanza dal livello rotto prima che il segnale decada
 
 # ── TRAILING STOP LOSS ────────────────────────────────────────
-TRAILING_CALLBACK_RATE = 0.5   # % distanza trailing stop nativo Binance
+TRAILING_CALLBACK_RATE = {   # % distanza trailing stop nativo Binance
+
+    "BTC/USDT": 0.5,
+    "ETH/USDT": 0.8,
+    "SOL/USDT": 1.0,
+}   
 
 # ── LIMITI OPERATIVI ─────────────────────────────────────────
 MAX_TRADES_PER_DAY_PER_ASSET = 1

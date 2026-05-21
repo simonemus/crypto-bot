@@ -231,8 +231,9 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
 
         # --- TP + Trailing Stop nativo Binance ---
         oco_side = "sell" if direction == "long" else "buy"
+        callback_rate = float(get_config_param(f"trailing_{symbol}") or config.TRAILING_CALLBACK_RATE.get(symbol, 0.5))
         oco = place_sl_tp_orders(exchange, symbol, oco_side, qty, tp, sl,
-                                  callback_rate=config.TRAILING_CALLBACK_RATE)
+                                  callback_rate=callback_rate)
 
         open_trades[symbol] = {
             "direction":   direction,
@@ -277,13 +278,9 @@ def monitor_open_trades(exchange) -> None:
             price = get_ticker_price(exchange, symbol)
             direction = trade["direction"]
             hit = None
-            closed_by_binance = False
 
-            # Controlla prima se Binance ha già chiuso la posizione
-            if not has_open_position(exchange, symbol):
-                hit = "closed_by_binance"
-                closed_by_binance = True
-            elif direction == "long":
+            # Controlla SL e TP fissi
+            if direction == "long":
                 if price <= trade["sl"]:
                     hit = "sl"
                 elif price >= trade["tp"]:
@@ -295,9 +292,16 @@ def monitor_open_trades(exchange) -> None:
                     hit = "tp"
 
             if hit:
-                if not closed_by_binance:
+                # Cancella ordini e chiudi posizione — ignora errori se Binance ha già chiuso
+                try:
                     cancel_all_orders(exchange, symbol)
+                except Exception:
+                    pass
+                try:
                     close_position_market(exchange, symbol, direction, trade["qty"])
+                except Exception:
+                    pass
+
                 pnl_pct = ((price - trade["entry"]) / trade["entry"] * 100)
                 if direction == "short":
                     pnl_pct = -pnl_pct
@@ -307,7 +311,7 @@ def monitor_open_trades(exchange) -> None:
                 if hit == "tp":
                     exit_reason = "tp"
                     msg = f"✅ Take Profit — {symbol}\nExit: {price:.4f} | PnL: +{pnl_pct}%"
-                elif hit in ("sl", "closed_by_binance"):
+                elif hit == "sl":
                     if pnl_pct > 0:
                         exit_reason = "trailing_win"
                         msg = f"📈 Trailing Win — {symbol}\nExit: {price:.4f} | PnL: +{pnl_pct}%"

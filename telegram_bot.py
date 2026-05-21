@@ -496,6 +496,9 @@ async def cmd_parametri(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"Rischio/trade: `{config.RISK_PER_TRADE_PCT}%`\n"
         f"Margine max: `{config.MAX_MARGIN_PCT}%`\n"
         f"Daily max loss: `{get_config_param('max_loss') or config.DAILY_MAX_LOSS_PCT}%`\n"
+        f"Trailing BTC: `{get_config_param('trailing_BTC/USDT') or config.TRAILING_CALLBACK_RATE.get('BTC/USDT', 0.5)}%`\n"
+        f"Trailing ETH: `{get_config_param('trailing_ETH/USDT') or config.TRAILING_CALLBACK_RATE.get('ETH/USDT', 0.8)}%`\n"
+        f"Trailing SOL: `{get_config_param('trailing_SOL/USDT') or config.TRAILING_CALLBACK_RATE.get('SOL/USDT', 1.0)}%`\n"
         f"Sessione: `{config.SESSION_START_HOUR}:00–{config.SESSION_END_HOUR}:00 UTC`\n"
         f"Weekend filter: `{'ON' if config.WEEKEND_FILTER else 'OFF'}`\n"
         f"Testnet: `{'SI' if config.TESTNET else 'NO'}`"
@@ -538,6 +541,26 @@ async def cmd_set(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             )
         except ValueError:
             await update.message.reply_text("⚠️ Valore non valido. Max loss deve essere tra 0.5 e 10.")
+    elif param == "trailing":
+        try:
+            if len(args) < 3:
+                raise ValueError
+            asset = args[1].upper()
+            tr_val = float(args[2])
+            symbol = f"{asset}/USDT"
+            if symbol not in config.SYMBOLS:
+                raise ValueError
+            if not (0.1 <= tr_val <= 10):
+                raise ValueError
+            set_config_param(f"trailing_{symbol}", str(tr_val))
+            await update.message.reply_text(
+                f"✅ Trailing {symbol} aggiornato a `{tr_val}%`", parse_mode=ParseMode.MARKDOWN
+            )
+        except ValueError:
+            await update.message.reply_text(
+                "⚠️ Uso: `/set trailing BTC 0.5`\nAsset: BTC, ETH, SOL. Valore tra 0.1 e 10.",
+                parse_mode=ParseMode.MARKDOWN
+            )
     else:
         await update.message.reply_text(f"⚠️ Parametro `{param}` non riconosciuto.")
 
@@ -719,7 +742,8 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "⚙️ *Parametri*\n"
         "/parametri — Parametri correnti\n"
         "/set rr 2.5 — Modifica il Risk/Reward\n"
-        "/set maxloss 2.0 — Modifica il daily max loss\n\n"
+        "/set maxloss 2.0 — Modifica il daily max loss\n"
+        "/set trailing BTC 0.5 — Modifica il trailing stop per asset\n\n"
         "🔧 *Altro*\n"
         "/test — Notifica di prova\n"
         "/help — Mostra questo messaggio"
