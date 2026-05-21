@@ -867,6 +867,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "/settrailing — Modifica il trailing stop per asset\n\n"
         "🔧 *Altro*\n"
         "/test — Notifica di prova\n"
+        "/resetdb — Resetta tutti i dati del DB\n"
         "/help — Mostra questo messaggio"
     )
     await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)            
