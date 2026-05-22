@@ -6,7 +6,6 @@
 
 import logging
 import threading
-import re
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
@@ -24,8 +23,6 @@ logger = logging.getLogger(__name__)
 
 # Riferimento al thread del bot di trading (impostato da main)
 _bot_thread: threading.Thread | None = None
-_stop_callback = None    # funzione stop_bot() da bot.py
-_start_callback = None   # funzione run_bot() da bot.py
 
 # Riferimento all'Application Telegram attiva (per shutdown)
 _telegram_app = None
@@ -33,13 +30,6 @@ _shutdown_event: threading.Event | None = None
 
 
 # ── INVIO MESSAGGI ────────────────────────────────────────────
-
-def _get_app():
-    """Crea e restituisce l'application Telegram (singleton lazy)."""
-    if not hasattr(_get_app, "_instance"):
-        _get_app._instance = ApplicationBuilder().token(config.TELEGRAM_BOT_TOKEN).build()
-    return _get_app._instance
-
 
 import queue
 import threading
