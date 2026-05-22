@@ -481,7 +481,7 @@ async def cmd_parametri(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"ATR period: `{config.ATR_PERIOD}`\n"
         f"EMA fast/slow: `{config.EMA_FAST}/{config.EMA_SLOW}`\n"
         f"Max risk ATR: `{config.MAX_RISK_ATR}`\n"
-        f"Breakout buffer: `{config.BREAKOUT_BUFFER}%`\n"
+        f"Breakout buffer: `min {config.BREAKOUT_BUFFER}% (dinamico ATR)`\n"
         f"Retest buffer: `{config.RETEST_BUFFER}%`\n"
         f"Rischio/trade: `{config.RISK_PER_TRADE_PCT}%`\n"
         f"Margine max: `{config.MAX_MARGIN_PCT}%`\n"
