@@ -706,21 +706,7 @@ def get_filter_stats(days: int = 30) -> list[dict]:
         ]
     except Exception as e:
         logger.error(f"DB get_filter_stats error: {e}")
-        return []        
-
-def update_sl_order_id(symbol: str, sl_order_id: str) -> None:
-    """Aggiorna l'ID dell'ordine SL attivo nel DB dopo ogni modifica trailing."""
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute(
-            "UPDATE trades SET sl_order_id=%s WHERE symbol=%s AND status='open'",
-            (sl_order_id, symbol)
-        )
-        conn.commit()
-        release_db(conn)
-    except Exception as e:
-        logger.error(f"DB update_sl_order_id error: {e}") 
+        return []         
 
 def reset_db() -> None:
     """Cancella tutti i dati da trades, equity, filter_stats, signals."""
