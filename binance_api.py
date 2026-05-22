@@ -486,7 +486,7 @@ def place_trailing_order(exchange, symbol: str, side: str,
             "type": "TRAILING_STOP_MARKET",
             "quantity": str(qty),
             "callbackRate": str(callback_rate),
-            "activationPrice": str(round(activation_price, 2)),
+            "activatePrice": str(round(activation_price, 2)),
             "workingType": "MARK_PRICE",
             "reduceOnly": "true",
         })
