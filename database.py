@@ -5,6 +5,10 @@ import os
 from datetime import datetime, timezone, date, timedelta
 
 logger = logging.getLogger(__name__)
+VALID_FILTER_FIELDS = {
+    "breakout_rilevati", "scartati_trend", "scartati_decadimento",
+    "arrivati_retest", "scartati_pattern", "scartati_atr", "trade_aperti"
+}
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 
@@ -197,18 +201,6 @@ def get_daily_pnl() -> float:
     except Exception as e:
         logger.error(f"DB get_daily_pnl error: {e}")
         return 0.0        
-
-def get_open_trade(symbol):
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM trades WHERE symbol=%s AND status=%s LIMIT 1", (symbol, "open"))
-        row = cur.fetchone()
-        release_db(conn)
-        return row
-    except Exception as e:
-        logger.error(f"DB get_open_trade error: {e}")
-        return None
 
 def get_today_trades():
     try:
@@ -660,6 +652,9 @@ def get_trades_range(start_date: str, end_date: str) -> list[dict]:
 
 def increment_filter_stat(symbol: str, field: str) -> None:
     """Incrementa di 1 un contatore nella tabella filter_stats per oggi."""
+    if field not in VALID_FILTER_FIELDS:
+        logger.error(f"DB increment_filter_stat — campo non valido: {field}")
+        return
     try:
         conn = get_db()
         cur = conn.cursor()
