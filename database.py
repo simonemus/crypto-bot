@@ -93,15 +93,6 @@ def init_db():
             INSERT INTO config (key, value, updated_at)
             VALUES ('max_loss', '2.0', now())
             ON CONFLICT (key) DO NOTHING;
-            INSERT INTO config (key, value, updated_at)
-            VALUES ('trailing_BTC/USDT', '0.5', now())
-            ON CONFLICT (key) DO NOTHING;
-            INSERT INTO config (key, value, updated_at)
-            VALUES ('trailing_ETH/USDT', '0.8', now())
-            ON CONFLICT (key) DO NOTHING;
-            INSERT INTO config (key, value, updated_at)
-            VALUES ('trailing_SOL/USDT', '1.0', now())
-            ON CONFLICT (key) DO NOTHING;
 
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS atr numeric;
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS breakout_buffer numeric;

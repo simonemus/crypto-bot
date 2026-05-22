@@ -16,7 +16,7 @@ from config import (
     BINANCE_FUTURES_LIVE_API_KEY,    BINANCE_FUTURES_LIVE_API_SECRET,
     BINANCE_LIVE_API_KEY,            BINANCE_LIVE_API_SECRET,
     ATR_PERIOD, EMA_FAST, EMA_SLOW,
-    MAX_RISK_ATR, MAX_POSITION_USDT,
+    MAX_RISK_ATR, MAX_POSITION_USDT, TP_RR,
     TF_SIGNAL, TF_ENTRY, PATTERNS_ENABLED,
 )
 logger = logging.getLogger(__name__)
@@ -447,21 +447,9 @@ def place_market_order(exchange: ccxt.binance, symbol: str,
     return order
 
 
-def place_sl_tp_orders(exchange, symbol: str, side: str,
-                       qty: float, tp: float, sl: float,
-                       callback_rate: float = 1.0,
-                       activation_price: float = None,
-                       atr: float = 0) -> dict:
-    """
-    Invia ordini TAKE_PROFIT_MARKET e TRAILING_STOP_MARKET per futures.
-    side: 'sell' per LONG, 'buy' per SHORT
-    callback_rate: % minimo distanza trailing stop
-    activation_price: prezzo da cui il trailing si attiva (+1R)
-    atr: ATR corrente per calcolo callback dinamico
-    """
-    results = {}
-
-    # Take Profit
+def place_tp_order(exchange, symbol: str, side: str,
+                   qty: float, tp: float) -> dict:
+    """Piazza solo il Take Profit Market."""
     try:
         tp_order = exchange.create_order(
             symbol, "TAKE_PROFIT_MARKET", side, qty,
@@ -471,45 +459,45 @@ def place_sl_tp_orders(exchange, symbol: str, side: str,
                 "workingType": "MARK_PRICE",
             }
         )
-        results["tp_order"] = tp_order
         logger.info(f"TP order piazzato: {tp}")
+        return tp_order
     except Exception as e:
         logger.error(f"Errore TP order: {e}")
+        return {}
 
-    # Calcola callback rate dinamico basato su ATR
-    if atr > 0 and activation_price and activation_price > 0:
-        atr_callback = round((atr * 0.5) / activation_price * 100, 3)
-        dynamic_callback = max(callback_rate, atr_callback)
-    else:
-        dynamic_callback = callback_rate
 
-    # Trailing Stop nativo Binance — endpoint Algo
+def place_trailing_order(exchange, symbol: str, side: str,
+                         qty: float, atr: float,
+                         activation_price: float) -> dict:
+    """
+    Piazza il trailing stop quando il prezzo raggiunge +1R.
+    Callback rate dinamico basato su sl_dist.
+    """
     try:
+        sl_dist = atr * MAX_RISK_ATR
+        callback_pct = round((sl_dist * 0.5) / activation_price * 100, 3)
+        callback_rate = max(0.1, callback_pct)
+
         raw_symbol = symbol.replace("/", "").replace(":USDT", "")
-        algo_params = {
+        algo_order = exchange.fapiPrivatePostAlgoOrder({
             "algoType": "CONDITIONAL",
             "symbol": raw_symbol,
             "side": side.upper(),
             "type": "TRAILING_STOP_MARKET",
             "quantity": str(qty),
-            "callbackRate": str(dynamic_callback),
+            "callbackRate": str(callback_rate),
+            "activationPrice": str(round(activation_price, 2)),
             "workingType": "MARK_PRICE",
             "reduceOnly": "true",
-        }
-
-        if activation_price and activation_price > 0:
-            algo_params["activationPrice"] = str(round(activation_price, 2))
-
-        algo_order = exchange.fapiPrivatePostAlgoOrder(algo_params)
-        results["sl_order"] = algo_order
+        })
         logger.info(
-            f"Trailing Stop Algo piazzato: callbackRate={dynamic_callback}% "
+            f"Trailing Stop piazzato: callbackRate={callback_rate}% "
             f"activationPrice={activation_price} algoId={algo_order.get('algoId')}"
         )
+        return algo_order
     except Exception as e:
-        logger.error(f"Errore Trailing Stop Algo order: {e}")
-
-    return results
+        logger.error(f"Errore Trailing Stop order: {e}")
+        return {}
 
 
 def cancel_all_orders(exchange: ccxt.binance, symbol: str) -> None:

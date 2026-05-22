@@ -15,7 +15,7 @@ from binance_api import (
     get_previous_day_hl, check_breakout, check_retest,
     detect_pattern, trend_ok, atr_ok,
     calc_sl_tp, calc_quantity,
-    place_market_order, place_sl_tp_orders,
+    place_market_order, place_tp_order, place_trailing_order,
     close_position_market, cancel_all_orders, cancel_algo_orders,
     get_balance_usdt, get_ticker_price,
     check_signal_decay, set_leverage_all,
@@ -200,7 +200,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
         # --- Calcolo entry / SL / TP ---
         entry = get_ticker_price(exchange, symbol)
         atr_val = float(df_15.iloc[-2]["atr"])
-        sl, tp  = calc_sl_tp(entry, direction, atr_val, rr)
+        sl, _ = calc_sl_tp(entry, direction, atr_val, rr)
 
         if not atr_ok(df_15, entry, sl):
             logger.info(f"{symbol} — filtro ATR fallito (SL troppo lontano)")
@@ -229,31 +229,32 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
                 logger.info(f"{symbol} — posizione non aperta su Binance, skip")
                 return
 
-        # --- TP + Trailing Stop nativo Binance ---
+        # --- TP fisso a RR 3.0 + Trailing piazzato dopo a +1R ---
         oco_side = "sell" if direction == "long" else "buy"
-        callback_rate = float(get_config_param(f"trailing_{symbol}") or config.TRAILING_CALLBACK_RATE.get(symbol, 1.0))
 
-        # Activation price a +1R — trailing si attiva solo in profitto
+        # Calcola TP a RR 3.0
         sl_dist = abs(entry - sl)
         if direction == "long":
-            activation_price = entry + sl_dist
+            tp = round(entry + sl_dist * config.TP_RR, 6)
+            activation_price = round(entry + sl_dist, 2)
         else:
-            activation_price = entry - sl_dist
+            tp = round(entry - sl_dist * config.TP_RR, 6)
+            activation_price = round(entry - sl_dist, 2)
 
-        oco = place_sl_tp_orders(exchange, symbol, oco_side, qty, tp, sl,
-                                  callback_rate=callback_rate,
-                                  activation_price=activation_price,
-                                  atr=atr_val)
+        # Piazza solo il TP — trailing verrà piazzato in monitor_open_trades
+        place_tp_order(exchange, symbol, oco_side, qty, tp)
 
         open_trades[symbol] = {
-            "direction":   direction,
-            "entry":       entry,
-            "sl":          sl,
-            "tp":          tp,
-            "qty":         qty,
-            "atr":         atr_val,
-            "order_id":    order.get("id"),
-            "pattern":     pattern,
+            "direction":        direction,
+            "entry":            entry,
+            "sl":               sl,
+            "tp":               tp,
+            "qty":              qty,
+            "atr":              atr_val,
+            "order_id":         order.get("id"),
+            "pattern":          pattern,
+            "activation_price": activation_price,
+            "trailing_placed":  False,
         }
         del breakout_seen[symbol]
         clear_breakout(symbol)
@@ -268,7 +269,7 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
             f"Direzione: {direction.upper()}\n"
             f"Entry: {entry:.4f} | SL: {sl:.4f} | TP: {tp:.4f}\n"
             f"Qty: {qty} | Pattern: {pattern.replace('_', ' ')}\n"
-            f"RR: {rr}"
+            f"RR: {config.TP_RR} | Trailing da: {activation_price:.4f}"
         )
 
     except Exception as e:
@@ -288,6 +289,20 @@ def monitor_open_trades(exchange) -> None:
             price = get_ticker_price(exchange, symbol)
             direction = trade["direction"]
             hit = None
+            oco_side = "sell" if direction == "long" else "buy"
+
+            # Piazza trailing quando prezzo raggiunge +1R
+            if not trade.get("trailing_placed", False):
+                activation = trade.get("activation_price")
+                if activation:
+                    if direction == "long" and price >= activation:
+                        place_trailing_order(exchange, symbol, oco_side, trade["qty"], trade["atr"], activation)
+                        open_trades[symbol]["trailing_placed"] = True
+                        send_message(f"🎯 Trailing attivato — {symbol}\nPrezzo: {price:.4f} | Activation: {activation:.4f}")
+                    elif direction == "short" and price <= activation:
+                        place_trailing_order(exchange, symbol, oco_side, trade["qty"], trade["atr"], activation)
+                        open_trades[symbol]["trailing_placed"] = True
+                        send_message(f"🎯 Trailing attivato — {symbol}\nPrezzo: {price:.4f} | Activation: {activation:.4f}")
 
             # Controlla SL e TP fissi
             if direction == "long":
@@ -549,6 +564,14 @@ def run_bot() -> None:
         for t in trades_db:
             symbol = t["symbol"]
             if symbol not in open_trades:
+                # Ricalcola activation_price da entry e sl
+                sl_dist = abs(t["entry"] - t["sl"])
+                if t["direction"] == "long":
+                    activation_price = round(t["entry"] + sl_dist, 2)
+                else:
+                    activation_price = round(t["entry"] - sl_dist, 2)
+                t["activation_price"] = activation_price
+                t["trailing_placed"] = True  # assumiamo trailing già piazzato
                 open_trades[symbol] = t
                 logger.info(f"Trade recuperato dal DB: {symbol} {t['direction']} entry={t['entry']}")
                 send_message(

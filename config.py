@@ -42,7 +42,8 @@ EMA_FAST     = 20
 EMA_SLOW     = 50
 
 # ── GESTIONE RISCHIO ──────────────────────────────────────────
-RISK_REWARD_RATIO   = 2.0    # RR di default (modificabile via /set rr)
+RISK_REWARD_RATIO   = 2.0    # RR per activation trailing (+1R)
+TP_RR               = 3.0    # RR fisso per il Take Profit
 MAX_RISK_ATR        = 1.30   # SL = entry ± ATR * MAX_RISK_ATR
 BREAKOUT_BUFFER     = 0.20   # % di buffer sopra/sotto PDH/PDL
 RETEST_BUFFER       = 0.50   # % di tolleranza per il retest
@@ -50,15 +51,7 @@ RISK_PER_TRADE_PCT  = 1.0    # % del capitale da rischiare per trade (rischio re
 MAX_MARGIN_PCT      = 10.0   # % massima del capitale usabile come margine per singolo trade
 MAX_POSITION_USDT   = 1000.0 # valore massimo posizione in USDT (fisso)
 SIGNAL_DECAY_BUFFER = 0.80   # % massima distanza dal livello rotto prima che il segnale decada
-
-# ── TRAILING STOP LOSS ────────────────────────────────────────
-TRAILING_CALLBACK_RATE = {   # % distanza trailing stop nativo Binance
-
-    "BTC/USDT": 1.0,
-    "ETH/USDT": 1.2,
-    "SOL/USDT": 1.8,
-}   
-
+   
 # ── LIMITI OPERATIVI ─────────────────────────────────────────
 MAX_TRADES_PER_DAY_PER_ASSET = 1
 DAILY_MAX_LOSS_PCT = 2.0      # % massima perdita giornaliera prima del blocco

@@ -486,9 +486,7 @@ async def cmd_parametri(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"Rischio/trade: `{config.RISK_PER_TRADE_PCT}%`\n"
         f"Margine max: `{config.MAX_MARGIN_PCT}%`\n"
         f"Daily max loss: `{get_config_param('max_loss') or config.DAILY_MAX_LOSS_PCT}%`\n"
-        f"Trailing BTC: `{get_config_param('trailing_BTC/USDT') or config.TRAILING_CALLBACK_RATE.get('BTC/USDT', 0.5)}%`\n"
-        f"Trailing ETH: `{get_config_param('trailing_ETH/USDT') or config.TRAILING_CALLBACK_RATE.get('ETH/USDT', 0.8)}%`\n"
-        f"Trailing SOL: `{get_config_param('trailing_SOL/USDT') or config.TRAILING_CALLBACK_RATE.get('SOL/USDT', 1.0)}%`\n"
+        f"Trailing callback: `dinamico (ATR × 0.5)`\n"
         f"Sessione: `{config.SESSION_START_HOUR}:00–{config.SESSION_END_HOUR}:00 UTC`\n"
         f"Weekend filter: `{'ON' if config.WEEKEND_FILTER else 'OFF'}`\n"
         f"Testnet: `{'SI' if config.TESTNET else 'NO'}`"
@@ -748,59 +746,7 @@ async def cmd_set_maxloss_callback(update: Update, ctx: ContextTypes.DEFAULT_TYP
     await query.answer()
     val = query.data.replace("setmaxloss_", "")
     set_config_param("max_loss", val)
-    await query.edit_message_text(f"✅ Daily max loss aggiornato a `{val}%`", parse_mode=ParseMode.MARKDOWN)
-
-async def cmd_set_trailing(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    """/settrailing — Imposta il trailing stop per asset con pulsanti."""
-    keyboard = [[
-        InlineKeyboardButton("BTC", callback_data="settrailing_asset_BTC"),
-        InlineKeyboardButton("ETH", callback_data="settrailing_asset_ETH"),
-        InlineKeyboardButton("SOL", callback_data="settrailing_asset_SOL"),
-    ]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        "📊 *Seleziona l'asset per il trailing stop:*",
-        reply_markup=reply_markup,
-        parse_mode=ParseMode.MARKDOWN
-    )
-
-async def cmd_set_trailing_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-
-    if query.data.startswith("settrailing_asset_"):
-        asset = query.data.replace("settrailing_asset_", "")
-        symbol = f"{asset}/USDT"
-        current = get_config_param(f"trailing_{symbol}") or config.TRAILING_CALLBACK_RATE.get(symbol, 0.5)
-        keyboard = [
-            [
-                InlineKeyboardButton("0.5%", callback_data=f"settrailing_val_{asset}_0.5"),
-                InlineKeyboardButton("0.8%", callback_data=f"settrailing_val_{asset}_0.8"),
-                InlineKeyboardButton("1.0%", callback_data=f"settrailing_val_{asset}_1.0"),
-                InlineKeyboardButton("1.2%", callback_data=f"settrailing_val_{asset}_1.2"),
-            ],
-            [
-                InlineKeyboardButton("1.5%", callback_data=f"settrailing_val_{asset}_1.5"),
-                InlineKeyboardButton("1.8%", callback_data=f"settrailing_val_{asset}_1.8"),
-                InlineKeyboardButton("2.0%", callback_data=f"settrailing_val_{asset}_2.0"),
-                InlineKeyboardButton("2.5%", callback_data=f"settrailing_val_{asset}_2.5"),
-            ]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(
-            f"📊 *Trailing {asset} attuale: {current}%*\nSeleziona il nuovo valore:",
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.MARKDOWN
-        )
-    elif query.data.startswith("settrailing_val_"):
-        parts = query.data.replace("settrailing_val_", "").split("_")
-        asset = parts[0]
-        val = parts[1]
-        symbol = f"{asset}/USDT"
-        set_config_param(f"trailing_{symbol}", val)
-        await query.edit_message_text(
-            f"✅ Trailing {asset} aggiornato a `{val}%`", parse_mode=ParseMode.MARKDOWN
-        )   
+    await query.edit_message_text(f"✅ Daily max loss aggiornato a `{val}%`", parse_mode=ParseMode.MARKDOWN)   
 
 async def cmd_reset_db(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/resetdb — Resetta tutti i dati del DB con conferma."""
@@ -901,8 +847,6 @@ def start_telegram_bot(shutdown_event: "threading.Event | None" = None) -> None:
     app.add_handler(CallbackQueryHandler(cmd_set_rr_callback, pattern="^setrr_"))
     app.add_handler(CommandHandler("setmaxloss", cmd_set_maxloss))
     app.add_handler(CallbackQueryHandler(cmd_set_maxloss_callback, pattern="^setmaxloss_"))
-    app.add_handler(CommandHandler("settrailing", cmd_set_trailing))
-    app.add_handler(CallbackQueryHandler(cmd_set_trailing_callback, pattern="^settrailing_"))
     app.add_handler(CommandHandler("resetdb", cmd_reset_db))
     app.add_handler(CallbackQueryHandler(cmd_reset_db_callback, pattern="^resetdb_"))
 
