@@ -206,7 +206,7 @@ def is_evening_star(prev2, prev1, curr) -> bool:
     2. Candela piccola (doji o corpo piccolo)
     3. Candela rossa che chiude oltre il 50% della prima
     """
-    if "bearish_engulfing" not in PATTERNS_ENABLED:
+    if "evening_star" not in PATTERNS_ENABLED:
         return False
     # Candela 1: verde grande
     c1_bullish = prev2["close"] > prev2["open"]
@@ -227,7 +227,7 @@ def is_morning_star(prev2, prev1, curr) -> bool:
     2. Candela piccola (doji o corpo piccolo)
     3. Candela verde che chiude oltre il 50% della prima
     """
-    if "bullish_engulfing" not in PATTERNS_ENABLED:
+    if "morning_star" not in PATTERNS_ENABLED:
         return False
     # Candela 1: rossa grande
     c1_bearish = prev2["close"] < prev2["open"]
@@ -248,7 +248,7 @@ def is_dark_cloud_cover(prev, curr) -> bool:
     2. Candela rossa che apre sopra il massimo della verde
        e chiude oltre il 50% del corpo della verde
     """
-    if "bearish_engulfing" not in PATTERNS_ENABLED:
+    if "dark_cloud_cover" not in PATTERNS_ENABLED:
         return False
     c1_bullish = prev["close"] > prev["open"]
     c1_body = _body(prev)
@@ -265,7 +265,7 @@ def is_piercing_line(prev, curr) -> bool:
     2. Candela verde che apre sotto il minimo della rossa
        e chiude oltre il 50% del corpo della rossa
     """
-    if "bullish_engulfing" not in PATTERNS_ENABLED:
+    if "piercing_line" not in PATTERNS_ENABLED:
         return False
     c1_bearish = prev["close"] < prev["open"]
     c2_bullish = curr["close"] > curr["open"]
