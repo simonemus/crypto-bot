@@ -32,7 +32,6 @@ _shutdown_event: threading.Event | None = None
 # ── INVIO MESSAGGI ────────────────────────────────────────────
 
 import queue
-import threading
 _message_queue = queue.Queue()
 
 def send_message(text: str) -> None:
