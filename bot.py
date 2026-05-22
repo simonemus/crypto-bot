@@ -16,7 +16,7 @@ from binance_api import (
     detect_pattern, trend_ok, atr_ok,
     calc_sl_tp, calc_quantity,
     place_market_order, place_sl_tp_orders,
-    close_position_market, cancel_all_orders,
+    close_position_market, cancel_all_orders, cancel_algo_orders,
     get_balance_usdt, get_ticker_price,
     check_signal_decay, set_leverage_all,
     has_open_position, get_exchange_with_retry,
@@ -231,9 +231,19 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
 
         # --- TP + Trailing Stop nativo Binance ---
         oco_side = "sell" if direction == "long" else "buy"
-        callback_rate = float(get_config_param(f"trailing_{symbol}") or config.TRAILING_CALLBACK_RATE.get(symbol, 0.5))
+        callback_rate = float(get_config_param(f"trailing_{symbol}") or config.TRAILING_CALLBACK_RATE.get(symbol, 1.0))
+
+        # Activation price a +1R — trailing si attiva solo in profitto
+        sl_dist = abs(entry - sl)
+        if direction == "long":
+            activation_price = entry + sl_dist
+        else:
+            activation_price = entry - sl_dist
+
         oco = place_sl_tp_orders(exchange, symbol, oco_side, qty, tp, sl,
-                                  callback_rate=callback_rate)
+                                  callback_rate=callback_rate,
+                                  activation_price=activation_price,
+                                  atr=atr_val)
 
         open_trades[symbol] = {
             "direction":   direction,
@@ -300,9 +310,13 @@ def monitor_open_trades(exchange) -> None:
                     hit = "closed_by_binance"
 
             if hit:
-                # Cancella ordini e chiudi posizione — ignora errori se Binance ha già chiuso
+                # Cancella ordini normali e Algo — ignora errori se Binance ha già chiuso
                 try:
                     cancel_all_orders(exchange, symbol)
+                except Exception:
+                    pass
+                try:
+                    cancel_algo_orders(exchange, symbol)
                 except Exception:
                     pass
                 try:
@@ -366,6 +380,7 @@ def force_close_all(exchange) -> None:
     for symbol, trade in list(open_trades.items()):
         try:
             cancel_all_orders(exchange, symbol)
+            cancel_algo_orders(exchange, symbol)
             price = get_ticker_price(exchange, symbol)
             close_position_market(exchange, symbol, trade["direction"], trade["qty"])
 

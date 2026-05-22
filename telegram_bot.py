@@ -777,9 +777,11 @@ async def cmd_set_trailing_callback(update: Update, ctx: ContextTypes.DEFAULT_TY
                 InlineKeyboardButton("0.5%", callback_data=f"settrailing_val_{asset}_0.5"),
                 InlineKeyboardButton("0.8%", callback_data=f"settrailing_val_{asset}_0.8"),
                 InlineKeyboardButton("1.0%", callback_data=f"settrailing_val_{asset}_1.0"),
+                InlineKeyboardButton("1.2%", callback_data=f"settrailing_val_{asset}_1.2"),
             ],
             [
                 InlineKeyboardButton("1.5%", callback_data=f"settrailing_val_{asset}_1.5"),
+                InlineKeyboardButton("1.8%", callback_data=f"settrailing_val_{asset}_1.8"),
                 InlineKeyboardButton("2.0%", callback_data=f"settrailing_val_{asset}_2.0"),
                 InlineKeyboardButton("2.5%", callback_data=f"settrailing_val_{asset}_2.5"),
             ]

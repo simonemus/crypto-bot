@@ -16,7 +16,7 @@ from config import (
     BINANCE_FUTURES_LIVE_API_KEY,    BINANCE_FUTURES_LIVE_API_SECRET,
     BINANCE_LIVE_API_KEY,            BINANCE_LIVE_API_SECRET,
     ATR_PERIOD, EMA_FAST, EMA_SLOW,
-    MAX_RISK_ATR,
+    MAX_RISK_ATR, MAX_POSITION_USDT,
     TF_SIGNAL, TF_ENTRY, PATTERNS_ENABLED,
 )
 logger = logging.getLogger(__name__)
@@ -409,7 +409,7 @@ def calc_quantity(exchange, symbol: str, entry: float,
     """
     Calcola la quantità in base al rischio reale per trade.
     Rischio 1% = perdi esattamente 1% del capitale se SL colpito.
-    Cap di sicurezza: margine mai superiore al 10% del capitale.
+    Cap di sicurezza: valore posizione mai superiore a 1000 USDT.
     """
     # Rischio reale in USDT
     risk_usdt = capital_usdt * (risk_pct / 100)
@@ -422,14 +422,12 @@ def calc_quantity(exchange, symbol: str, entry: float,
     # Quantità = rischio / distanza SL
     qty = risk_usdt / sl_dist
 
-    # Cap di sicurezza — margine massimo 10% del capitale
-    max_margin = capital_usdt * 0.10
-    max_position = max_margin * leverage
-    max_qty = max_position / entry
+    # Cap di sicurezza — valore posizione massimo fisso
+    position_value = qty * entry
 
-    if qty > max_qty:
-        logger.warning(f"Quantità ridotta per cap margine: {qty:.6f} → {max_qty:.6f}")
-        qty = max_qty
+    if position_value > MAX_POSITION_USDT:
+        logger.warning(f"Quantità ridotta per cap posizione: {qty:.6f} → {MAX_POSITION_USDT/entry:.6f}")
+        qty = MAX_POSITION_USDT / entry
 
     # Arrotonda alla precisione del mercato
     qty = float(exchange.amount_to_precision(symbol, qty))
@@ -451,11 +449,15 @@ def place_market_order(exchange: ccxt.binance, symbol: str,
 
 def place_sl_tp_orders(exchange, symbol: str, side: str,
                        qty: float, tp: float, sl: float,
-                       callback_rate: float = 0.5) -> dict:
+                       callback_rate: float = 1.0,
+                       activation_price: float = None,
+                       atr: float = 0) -> dict:
     """
     Invia ordini TAKE_PROFIT_MARKET e TRAILING_STOP_MARKET per futures.
     side: 'sell' per LONG, 'buy' per SHORT
-    callback_rate: % distanza trailing stop nativo Binance
+    callback_rate: % minimo distanza trailing stop
+    activation_price: prezzo da cui il trailing si attiva (+1R)
+    atr: ATR corrente per calcolo callback dinamico
     """
     results = {}
 
@@ -474,21 +476,36 @@ def place_sl_tp_orders(exchange, symbol: str, side: str,
     except Exception as e:
         logger.error(f"Errore TP order: {e}")
 
+    # Calcola callback rate dinamico basato su ATR
+    if atr > 0 and activation_price and activation_price > 0:
+        atr_callback = round((atr * 0.5) / activation_price * 100, 3)
+        dynamic_callback = max(callback_rate, atr_callback)
+    else:
+        dynamic_callback = callback_rate
+
     # Trailing Stop nativo Binance — endpoint Algo
     try:
         raw_symbol = symbol.replace("/", "").replace(":USDT", "")
-        algo_order = exchange.fapiPrivatePostAlgoOrder({
+        algo_params = {
             "algoType": "CONDITIONAL",
             "symbol": raw_symbol,
             "side": side.upper(),
             "type": "TRAILING_STOP_MARKET",
             "quantity": str(qty),
-            "callbackRate": str(callback_rate),
+            "callbackRate": str(dynamic_callback),
             "workingType": "MARK_PRICE",
             "reduceOnly": "true",
-        })
+        }
+
+        if activation_price and activation_price > 0:
+            algo_params["activationPrice"] = str(round(activation_price, 2))
+
+        algo_order = exchange.fapiPrivatePostAlgoOrder(algo_params)
         results["sl_order"] = algo_order
-        logger.info(f"Trailing Stop Algo piazzato: callbackRate={callback_rate}% algoId={algo_order.get('algoId')}")
+        logger.info(
+            f"Trailing Stop Algo piazzato: callbackRate={dynamic_callback}% "
+            f"activationPrice={activation_price} algoId={algo_order.get('algoId')}"
+        )
     except Exception as e:
         logger.error(f"Errore Trailing Stop Algo order: {e}")
 
@@ -502,6 +519,23 @@ def cancel_all_orders(exchange: ccxt.binance, symbol: str) -> None:
         logger.info(f"Tutti gli ordini cancellati per {symbol}")
     except Exception as e:
         logger.error(f"Errore nella cancellazione ordini {symbol}: {e}")
+
+
+def cancel_algo_orders(exchange, symbol: str) -> None:
+    """Cancella tutti gli ordini Algo aperti su un simbolo."""
+    try:
+        raw_symbol = symbol.replace("/", "").replace(":USDT", "")
+        open_algos = exchange.fapiPrivateGetAlgoOrders({"symbol": raw_symbol})
+        orders = open_algos.get("orders", [])
+        for order in orders:
+            algo_id = order.get("algoId")
+            if algo_id:
+                exchange.fapiPrivateDeleteAlgoOrder({"algoId": algo_id})
+                logger.info(f"Ordine Algo {algo_id} cancellato per {symbol}")
+        if not orders:
+            logger.info(f"Nessun ordine Algo aperto per {symbol}")
+    except Exception as e:
+        logger.error(f"Errore cancellazione ordini Algo {symbol}: {e}")        
 
 
 def close_position_market(exchange: ccxt.binance, symbol: str,
