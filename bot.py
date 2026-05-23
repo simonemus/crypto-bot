@@ -310,14 +310,21 @@ def monitor_open_trades(exchange) -> None:
             if not trade.get("trailing_placed", False):
                 activation = trade.get("activation_price")
                 if activation:
-                    if direction == "long" and price >= activation:
-                        place_trailing_order(exchange, symbol, oco_side, trade["qty"], trade["atr"], activation)
-                        open_trades[symbol]["trailing_placed"] = True
-                        send_message(f"🎯 Trailing attivato — {symbol}\nPrezzo: {price:.4f} | Activation: {activation:.4f}")
-                    elif direction == "short" and price <= activation:
-                        place_trailing_order(exchange, symbol, oco_side, trade["qty"], trade["atr"], activation)
-                        open_trades[symbol]["trailing_placed"] = True
-                        send_message(f"🎯 Trailing attivato — {symbol}\nPrezzo: {price:.4f} | Activation: {activation:.4f}")
+                    should_place = (
+                        (direction == "long" and price >= activation) or
+                        (direction == "short" and price <= activation)
+                    )
+                    if should_place:
+                        trailing_order = place_trailing_order(
+                            exchange, symbol, oco_side,
+                            trade["qty"], trade["atr"], activation
+                        )
+                        if trailing_order:
+                            open_trades[symbol]["trailing_placed"] = True
+                            send_message(f"🎯 Trailing attivato — {symbol}\nPrezzo: {price:.4f} | Activation: {activation:.4f}")
+                        else:
+                            logger.error(f"{symbol} — trailing NON piazzato, riprovo al prossimo ciclo")
+                            send_error(f"⚠️ {symbol} — trailing non piazzato, SL fisso resta attivo")
 
             # Controlla SL e TP fissi
             if direction == "long":
