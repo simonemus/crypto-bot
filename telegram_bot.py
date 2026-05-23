@@ -728,7 +728,7 @@ async def cmd_set_maxloss_callback(update: Update, ctx: ContextTypes.DEFAULT_TYP
     set_config_param("max_loss", val)
     await query.edit_message_text(f"✅ Daily max loss aggiornato a `{val}%`", parse_mode=ParseMode.MARKDOWN)
 
-    async def cmd_set_weekend(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+async def cmd_set_weekend(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/setweekend — Attiva o disattiva il weekend filter."""
     current = get_config_param("weekend_filter") or "true"
     status = "ON" if current == "true" else "OFF"
