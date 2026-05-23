@@ -513,45 +513,6 @@ async def cmd_parametri(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
 
 
-async def cmd_set(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    """/set rr 2.5 — Imposta un parametro dinamico."""
-    args = ctx.args   # es. ["rr", "2.5"]
-    if not args or len(args) < 2:
-        await update.message.reply_text(
-            "Uso: `/set rr <valore>`\nEsempio: `/set rr 2.5`",
-            parse_mode=ParseMode.MARKDOWN,
-        )
-        return
-
-    param = args[0].lower()
-    value = args[1]
-
-    if param == "rr":
-        try:
-            rr_val = float(value)
-            if not (0.5 <= rr_val <= 10):
-                raise ValueError
-            set_config_param("rr", str(rr_val))
-            await update.message.reply_text(
-                f"✅ RR aggiornato a `{rr_val}`", parse_mode=ParseMode.MARKDOWN
-            )
-        except ValueError:
-            await update.message.reply_text("⚠️ Valore non valido. RR deve essere tra 0.5 e 10.")
-    elif param == "maxloss":
-        try:
-            ml_val = float(value)
-            if not (0.5 <= ml_val <= 10):
-                raise ValueError
-            set_config_param("max_loss", str(ml_val))
-            await update.message.reply_text(
-                f"✅ Daily max loss aggiornato a `{ml_val}%`", parse_mode=ParseMode.MARKDOWN
-            )
-        except ValueError:
-            await update.message.reply_text("⚠️ Valore non valido. Max loss deve essere tra 0.5 e 10.")
-    else:
-        await update.message.reply_text(f"⚠️ Parametro `{param}` non riconosciuto.")
-
-
 async def cmd_test(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/test — Manda una notifica di prova per verificare che tutto funzioni."""
     send_message("🔍 *Test notifica* — il bot sta funzionando correttamente!")
@@ -1060,7 +1021,6 @@ def start_telegram_bot(shutdown_event: "threading.Event | None" = None) -> None:
     app.add_handler(CommandHandler("report",      cmd_report))
     app.add_handler(CommandHandler("equity",      cmd_equity))
     app.add_handler(CommandHandler("parametri",   cmd_parametri))
-    app.add_handler(CommandHandler("set",         cmd_set))
     app.add_handler(CommandHandler("reportweek",  cmd_report_week))
     app.add_handler(CommandHandler("reportmonth", cmd_report_month))
     app.add_handler(CommandHandler("reportall",   cmd_report_all))
