@@ -649,14 +649,23 @@ def get_open_positions(exchange) -> list[dict]:
         return []
 
 
+ddef normalize_symbol(symbol: str) -> str:
+    """Normalizza il simbolo rimuovendo il suffisso :USDT."""
+    return symbol.replace(":USDT", "")
+
+
 def has_open_position(exchange, symbol: str) -> bool:
     """
     Verifica se esiste già una posizione aperta su Binance per il simbolo.
+    Normalizza i simboli per evitare mismatch BTC/USDT vs BTC/USDT:USDT.
     """
     try:
+        target = normalize_symbol(symbol)
         positions = get_open_positions(exchange)
         for p in positions:
-            if p.get("symbol") == symbol and float(p.get("contracts", 0)) != 0:
+            p_symbol = normalize_symbol(p.get("symbol", ""))
+            contracts = float(p.get("contracts") or 0)
+            if p_symbol == target and contracts != 0:
                 return True
         return False
     except Exception as e:
