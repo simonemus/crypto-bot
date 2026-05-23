@@ -246,8 +246,18 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
             activation_price = round(entry - sl_dist, 2)
 
         # Piazza TP e SL — trailing verrà piazzato in monitor_open_trades
-        place_tp_order(exchange, symbol, oco_side, qty, tp)
-        place_sl_order(exchange, symbol, oco_side, qty, sl)
+        tp_order = place_tp_order(exchange, symbol, oco_side, qty, tp)
+        sl_order = place_sl_order(exchange, symbol, oco_side, qty, sl)
+
+        if not sl_order:
+            logger.error(f"{symbol} — SL non piazzato. Chiudo posizione per sicurezza.")
+            cancel_all_symbol_orders(exchange, symbol)
+            close_position_market(exchange, symbol, direction, qty)
+            send_error(f"🚨 {symbol} — SL non piazzato. Posizione chiusa per sicurezza.")
+            return
+
+        if not tp_order:
+            logger.warning(f"{symbol} — TP non piazzato. Trade aperto senza TP server-side.")
 
         open_trades[symbol] = {
             "direction":        direction,
