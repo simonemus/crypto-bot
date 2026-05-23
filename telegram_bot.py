@@ -110,7 +110,7 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     stato = "🟢 In esecuzione" if BOT_RUNNING else "🔴 Fermo"
     sessione = "✅ Sessione attiva" if in_session() else "⏸ Fuori sessione"
     ora = now_utc().strftime("%H:%M UTC")
-    rr = get_config_param("rr") or config.RISK_REWARD_RATIO
+    rr = get_config_param("rr") or 2.0
 
     try:
         exchange = get_exchange()
@@ -253,7 +253,8 @@ async def cmd_report_week(update, ctx):
     from datetime import date, timedelta
 
     today = date.today()
-    if config.WEEKEND_FILTER:
+    weekend_filter = get_config_param("weekend_filter") or str(config.WEEKEND_FILTER).lower()
+    if str(weekend_filter).lower() == "true":
         start = today - timedelta(days=today.weekday())
     else:
         start = today - timedelta(days=6)
@@ -482,8 +483,8 @@ async def cmd_parametri(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"EMA fast/slow: `{config.EMA_FAST}/{config.EMA_SLOW}`\n"
         f"Breakout buffer: `min {config.BREAKOUT_BUFFER}% (dinamico ATR)`\n"
         f"Retest buffer: `{config.RETEST_BUFFER}%`\n"
-        f"Rischio/trade: `{config.RISK_PER_TRADE_PCT}%`\n"
-        f"Margine max: `{config.MAX_MARGIN_PCT}%`\n"
+        f"Rischio/trade: `{config.RISK_USDT} USDT`\n"
+        f"Margine max: `{config.MAX_MARGIN_USDT} USDT`\n"
         f"Daily max loss: `{get_config_param('max_loss') or config.DAILY_MAX_LOSS_PCT}%`\n"
         f"SL: `{get_config_param('sl_pct') or config.SL_PCT * 100}%`\n"
         f"TP: `{get_config_param('tp_pct') or config.TP_PCT * 100}%`\n"
@@ -697,7 +698,7 @@ async def cmd_set_rr(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         InlineKeyboardButton("2.5", callback_data="setrr_2.5"),
         InlineKeyboardButton("3.0", callback_data="setrr_3.0"),
     ]]
-    rr_attuale = get_config_param("rr") or config.RISK_REWARD_RATIO
+    rr_attuale = get_config_param("rr") or 2.0
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
         f"📊 *Risk/Reward attuale: {rr_attuale}*\nSeleziona il nuovo valore:",
