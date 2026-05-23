@@ -247,7 +247,6 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
         # --- Calcola activation price trailing ---
         oco_side = "sell" if direction == "long" else "buy"
 
-        from database import get_config_param
         trailing_act_pct = float(get_config_param("trailing_activation_pct") or config.TRAILING_ACTIVATION_PCT * 100) / 100
         if direction == "long":
             activation_price = round(entry * (1 + trailing_act_pct), 6)
@@ -550,7 +549,8 @@ def send_weekly_report(exchange) -> None:
         from telegram_bot import _format_report
         today = date.today()
         last_monday = today - timedelta(days=today.weekday() + 7)
-        if config.WEEKEND_FILTER:
+        weekend_filter = get_config_param("weekend_filter") or str(config.WEEKEND_FILTER).lower()
+        if str(weekend_filter).lower() == "true":
             last_end = last_monday + timedelta(days=4)
         else:
             last_end = last_monday + timedelta(days=6)
@@ -686,7 +686,7 @@ def run_bot() -> None:
 
             # Sessione attiva
             if in_session():
-                rr = float(get_config_param("rr") or config.RISK_REWARD_RATIO)
+                rr = float(get_config_param("rr") or 2.0)
                 for symbol in config.SYMBOLS:
                     logger.info(f"Scansione — {symbol} — {now_utc().strftime('%H:%M:%S')} UTC")
                     scan_symbol(exchange, symbol, rr)

@@ -475,7 +475,7 @@ async def cmd_equity(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def cmd_parametri(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/parametri — Mostra i parametri correnti del bot."""
-    rr  = get_config_param("rr")  or config.RISK_REWARD_RATIO
+    rr = get_config_param("rr") or 2.0
     msg = (
         f"⚙️ *Parametri correnti*\n"
         f"RR: `{rr}`\n"

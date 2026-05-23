@@ -22,6 +22,8 @@ from config import (
     TF_SIGNAL, TF_ENTRY, PATTERNS_ENABLED,
 )
 
+logger = logging.getLogger(__name__)
+
 def _get_param(key, default):
     """Legge un parametro dal DB, fallback al valore default."""
     try:
@@ -32,7 +34,6 @@ def _get_param(key, default):
     except Exception:
         pass
     return default
-logger = logging.getLogger(__name__)
 
 
 # ── CONNESSIONE ───────────────────────────────────────────────
