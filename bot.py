@@ -75,7 +75,7 @@ def in_session() -> bool:
         weekend_filter = str(config.WEEKEND_FILTER).lower()
     if weekend_filter == "true" and is_weekend():
         return False
-    return config.SESSION_START_HOUR <= now.hour < config.SESSION_END_HOURS
+    return config.SESSION_START_HOUR <= now.hour < config.SESSION_END_HOUR
 
 
 def is_force_close_time() -> bool:
