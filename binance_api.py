@@ -485,11 +485,12 @@ def place_sl_order(exchange, symbol: str, side: str,
     """
     try:
         sl_price = exchange.price_to_precision(symbol, sl)
+        qty_precise = exchange.amount_to_precision(symbol, qty)
         sl_order = exchange.create_order(
             symbol,
             "STOP_MARKET",
             side,
-            qty,
+            qty_precise,
             params={
                 "stopPrice": sl_price,
                 "workingType": "MARK_PRICE",
