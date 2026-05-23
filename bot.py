@@ -37,16 +37,17 @@ from database import (
 logger = logging.getLogger()
 logger.setLevel(config.LOG_LEVEL)
 
-formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s — %(message)s")
+if not logger.handlers:
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s — %(message)s")
 
-fh = logging.handlers.RotatingFileHandler(config.LOG_FILE, maxBytes=5_000_000, backupCount=3)
-fh.setFormatter(formatter)
+    fh = logging.handlers.RotatingFileHandler(config.LOG_FILE, maxBytes=5_000_000, backupCount=3)
+    fh.setFormatter(formatter)
 
-ch = logging.StreamHandler()
-ch.setFormatter(formatter)
+    ch = logging.StreamHandler()
+    ch.setFormatter(formatter)
 
-logger.addHandler(fh)
-logger.addHandler(ch)
+    logger.addHandler(fh)
+    logger.addHandler(ch)
 
 # ── STATO RUNTIME ─────────────────────────────────────────────
 BOT_RUNNING   = False
