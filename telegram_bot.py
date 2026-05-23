@@ -154,12 +154,27 @@ async def cmd_trade(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             if t["direction"] == "short":
                 pnl_pct = -pnl_pct
             pnl_sign = "+" if pnl_pct >= 0 else ""
+            from binance_api import classify_atr
+            atr_val = t.get("atr", 0)
+            atr_pct_trade = round(atr_val / t["entry"] * 100, 3) if atr_val else None
+            if atr_pct_trade:
+                atr_class = classify_atr(sym, atr_val, t["entry"])
+                atr_emoji = {
+                    "IDEAL_VOLATILITY":        "🟢",
+                    "VALID_BUT_NOT_IDEAL":     "🟡",
+                    "NO_TRADE_LOW_VOLATILITY": "🔴-",
+                    "NO_TRADE_HIGH_VOLATILITY":"🔴+",
+                }.get(atr_class, "⚪")
+                atr_str = f"ATR%: `{atr_pct_trade}%` {atr_emoji}\n"
+            else:
+                atr_str = ""
             lines.append(
                 f"*{sym}* — {t['direction'].upper()}\n"
                 f"Entry: `{t['entry']:.4f}` | Live: `{price:.4f}`\n"
                 f"SL: `{t['sl']:.4f}` | TP: `{t['tp']:.4f}`\n"
                 f"PnL: `{pnl_sign}{pnl_pct:.2f}%`\n"
                 f"Pattern: `{t.get('pattern', 'N/D')}`\n"
+                f"{atr_str}"
             )
         except Exception as e:
             lines.append(f"{sym}: errore dati ({e})")
