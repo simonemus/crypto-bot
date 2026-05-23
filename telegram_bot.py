@@ -584,13 +584,23 @@ async def cmd_livelli(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             else:
                 pdl_str = f"`{pdl:.2f}` Breakout: {breakout_short:.2f} | {dist_to_breakout_short}%"
 
+            atr_pct_val = round(atr / price * 100, 3)
+            from binance_api import classify_atr
+            atr_class = classify_atr(symbol, atr, price)
+            atr_emoji = {
+                "IDEAL_VOLATILITY":        "🟢",
+                "VALID_BUT_NOT_IDEAL":     "🟡",
+                "NO_TRADE_LOW_VOLATILITY": "🔴-",
+                "NO_TRADE_HIGH_VOLATILITY":"🔴+",
+            }.get(atr_class, "⚪")
+
             lines.append(
                 f"*{symbol}*\n"
                 f"Live: `{price:.2f}` {now_str}\n"
                 f"PDH: {pdh_str}\n"
                 f"PDL: {pdl_str}\n"
                 f"Range: `{range_pct}%`\n"
-                f"ATR 15m: `{atr:.4f}` | Buffer: `{buffer}%`\n"
+                f"ATR%: `{atr_pct_val}%` {atr_emoji}\n"
             )
         await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
     except Exception as e:
