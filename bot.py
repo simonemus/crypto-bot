@@ -571,7 +571,7 @@ def run_bot() -> None:
                 else:
                     activation_price = round(t["entry"] - sl_dist, 2)
                 t["activation_price"] = activation_price
-                t["trailing_placed"] = True  # assumiamo trailing già piazzato
+                t["trailing_placed"] = False  # al restart ripiazza il trailing se serve
                 open_trades[symbol] = t
                 logger.info(f"Trade recuperato dal DB: {symbol} {t['direction']} entry={t['entry']}")
                 send_message(
