@@ -92,7 +92,7 @@ def is_report_time() -> bool:
 
 # ── CORE LOGIC ────────────────────────────────────────────────
 
-def scan_symbol(exchange, symbol: str, rr: float) -> None:
+def scan_symbol(exchange, symbol: str) -> None:
     """
     Scansiona un simbolo: rileva breakout su 15m, retest su 5m,
     pattern candele, filtra ATR + trend, apre il trade.
@@ -686,10 +686,9 @@ def run_bot() -> None:
 
             # Sessione attiva
             if in_session():
-                rr = float(get_config_param("rr") or 2.0)
                 for symbol in config.SYMBOLS:
                     logger.info(f"Scansione — {symbol} — {now_utc().strftime('%H:%M:%S')} UTC")
-                    scan_symbol(exchange, symbol, rr)
+                    scan_symbol(exchange, symbol)
                     pdh, pdl = get_previous_day_hl(exchange, symbol)
                     df_15_prox = fetch_ohlcv(exchange, symbol, config.TF_SIGNAL, limit=20)
                     df_15_prox = add_indicators(df_15_prox)

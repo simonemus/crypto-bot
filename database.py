@@ -88,9 +88,6 @@ def init_db():
                 created_at timestamptz default now()
             );
             INSERT INTO config (key, value, updated_at)
-            VALUES ('rr', '2.0', now())
-            ON CONFLICT (key) DO NOTHING;
-            INSERT INTO config (key, value, updated_at)
             VALUES ('max_loss', '2.0', now())
             ON CONFLICT (key) DO NOTHING;
             INSERT INTO config (key, value, updated_at)

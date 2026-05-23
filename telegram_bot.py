@@ -110,7 +110,6 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     stato = "🟢 In esecuzione" if BOT_RUNNING else "🔴 Fermo"
     sessione = "✅ Sessione attiva" if in_session() else "⏸ Fuori sessione"
     ora = now_utc().strftime("%H:%M UTC")
-    rr = get_config_param("rr") or 2.0
 
     try:
         exchange = get_exchange()
@@ -125,7 +124,6 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"Sessione: {sessione}",
         f"Ora: {ora}",
         f"Equity: {equity_str}",
-        f"RR attuale: {rr}",
         f"",
         f"*Posizioni aperte: {len(open_trades)}*",
     ]
@@ -475,10 +473,8 @@ async def cmd_equity(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def cmd_parametri(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/parametri — Mostra i parametri correnti del bot."""
-    rr = get_config_param("rr") or 2.0
     msg = (
         f"⚙️ *Parametri correnti*\n"
-        f"RR: `{rr}`\n"
         f"ATR period: `{config.ATR_PERIOD}`\n"
         f"EMA fast/slow: `{config.EMA_FAST}/{config.EMA_SLOW}`\n"
         f"Breakout buffer: `min {config.BREAKOUT_BUFFER}% (dinamico ATR)`\n"
@@ -689,29 +685,6 @@ async def cmd_stats_filtri(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> No
         )
 
     await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
-
-async def cmd_set_rr(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    """/setrr — Imposta il Risk/Reward con pulsanti."""
-    keyboard = [[
-        InlineKeyboardButton("1.5", callback_data="setrr_1.5"),
-        InlineKeyboardButton("2.0", callback_data="setrr_2.0"),
-        InlineKeyboardButton("2.5", callback_data="setrr_2.5"),
-        InlineKeyboardButton("3.0", callback_data="setrr_3.0"),
-    ]]
-    rr_attuale = get_config_param("rr") or 2.0
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        f"📊 *Risk/Reward attuale: {rr_attuale}*\nSeleziona il nuovo valore:",
-        reply_markup=reply_markup,
-        parse_mode=ParseMode.MARKDOWN
-    )
-
-async def cmd_set_rr_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-    val = query.data.replace("setrr_", "")
-    set_config_param("rr", val)
-    await query.edit_message_text(f"✅ RR aggiornato a `{val}`", parse_mode=ParseMode.MARKDOWN)
 
 async def cmd_set_maxloss(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/setmaxloss — Imposta il daily max loss con pulsanti."""
@@ -990,7 +963,6 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "/statsfiltri — Statistiche filtri scansione\n\n"
         "⚙️ *Parametri*\n"
         "/parametri — Parametri correnti\n"
-        "/setrr — Modifica il Risk/Reward\n"
         "/setmaxloss — Modifica il daily max loss\n"
         "/setweekend — Attiva/disattiva weekend filter\n"
         "/setsl — Modifica Stop Loss%\n"
@@ -1039,8 +1011,6 @@ def start_telegram_bot(shutdown_event: "threading.Event | None" = None) -> None:
     app.add_handler(CommandHandler("cooldown", cmd_cooldown))
     app.add_handler(CommandHandler("resetcooldown", cmd_reset_cooldown))
     app.add_handler(CallbackQueryHandler(cmd_reset_cooldown_callback, pattern="^reset_"))
-    app.add_handler(CommandHandler("setrr", cmd_set_rr))
-    app.add_handler(CallbackQueryHandler(cmd_set_rr_callback, pattern="^setrr_"))
     app.add_handler(CommandHandler("setmaxloss", cmd_set_maxloss))
     app.add_handler(CallbackQueryHandler(cmd_set_maxloss_callback, pattern="^setmaxloss_"))
     app.add_handler(CommandHandler("resetdb", cmd_reset_db))
