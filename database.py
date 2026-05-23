@@ -96,6 +96,42 @@ def init_db():
             INSERT INTO config (key, value, updated_at)
             VALUES ('weekend_filter', 'true', now())
             ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('sl_pct', '1.5', now())
+            ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('tp_pct', '3.0', now())
+            ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('trailing_activation_pct', '1.5', now())
+            ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('callback_BTC/USDT', '0.6', now())
+            ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('callback_ETH/USDT', '0.8', now())
+            ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('callback_SOL/USDT', '1.0', now())
+            ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('atr_min_BTC/USDT', '0.15', now())
+            ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('atr_max_BTC/USDT', '0.75', now())
+            ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('atr_min_ETH/USDT', '0.20', now())
+            ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('atr_max_ETH/USDT', '0.90', now())
+            ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('atr_min_SOL/USDT', '0.30', now())
+            ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('atr_max_SOL/USDT', '1.20', now())
+            ON CONFLICT (key) DO NOTHING;
 
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS atr numeric;
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS breakout_buffer numeric;

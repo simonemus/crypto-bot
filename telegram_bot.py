@@ -486,7 +486,15 @@ async def cmd_parametri(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"Rischio/trade: `{config.RISK_PER_TRADE_PCT}%`\n"
         f"Margine max: `{config.MAX_MARGIN_PCT}%`\n"
         f"Daily max loss: `{get_config_param('max_loss') or config.DAILY_MAX_LOSS_PCT}%`\n"
-        f"Trailing callback: `dinamico (ATR × 0.5)`\n"
+        f"SL: `{get_config_param('sl_pct') or config.SL_PCT * 100}%`\n"
+        f"TP: `{get_config_param('tp_pct') or config.TP_PCT * 100}%`\n"
+        f"Trailing activation: `{get_config_param('trailing_activation_pct') or config.TRAILING_ACTIVATION_PCT * 100}%`\n"
+        f"Callback BTC: `{get_config_param('callback_BTC/USDT') or config.TRAILING_CALLBACK.get('BTC/USDT')}%`\n"
+        f"Callback ETH: `{get_config_param('callback_ETH/USDT') or config.TRAILING_CALLBACK.get('ETH/USDT')}%`\n"
+        f"Callback SOL: `{get_config_param('callback_SOL/USDT') or config.TRAILING_CALLBACK.get('SOL/USDT')}%`\n"
+        f"ATR BTC: `{get_config_param('atr_min_BTC/USDT') or '0.15'}% — {get_config_param('atr_max_BTC/USDT') or '0.75'}%`\n"
+        f"ATR ETH: `{get_config_param('atr_min_ETH/USDT') or '0.20'}% — {get_config_param('atr_max_ETH/USDT') or '0.90'}%`\n"
+        f"ATR SOL: `{get_config_param('atr_min_SOL/USDT') or '0.30'}% — {get_config_param('atr_max_SOL/USDT') or '1.20'}%`\n"
         f"Sessione: `{config.SESSION_START_HOUR}:00–{config.SESSION_END_HOUR}:00 UTC`\n"
         f"Weekend filter: `{'ON' if (get_config_param('weekend_filter') or str(config.WEEKEND_FILTER).lower()) == 'true' else 'OFF'}`\n"
         f"Testnet: `{'SI' if config.TESTNET else 'NO'}`"
@@ -752,7 +760,184 @@ async def cmd_set_weekend_callback(update: Update, ctx: ContextTypes.DEFAULT_TYP
     await query.edit_message_text(
         f"✅ Weekend filter aggiornato a *{status}*",
         parse_mode=ParseMode.MARKDOWN
-    )   
+    ) 
+
+async def cmd_set_sl(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/setsl — Imposta SL% con pulsanti."""
+    current = get_config_param("sl_pct") or "1.5"
+    keyboard = [[
+        InlineKeyboardButton("1.0%", callback_data="setsl_1.0"),
+        InlineKeyboardButton("1.5%", callback_data="setsl_1.5"),
+        InlineKeyboardButton("2.0%", callback_data="setsl_2.0"),
+        InlineKeyboardButton("2.5%", callback_data="setsl_2.5"),
+    ]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        f"📊 *Stop Loss attuale: {current}%*\nSeleziona il nuovo valore:",
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+async def cmd_set_sl_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    val = query.data.replace("setsl_", "")
+    set_config_param("sl_pct", val)
+    await query.edit_message_text(f"✅ Stop Loss aggiornato a `{val}%`", parse_mode=ParseMode.MARKDOWN)
+
+
+async def cmd_set_tp(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/settp — Imposta TP% con pulsanti."""
+    current = get_config_param("tp_pct") or "3.0"
+    keyboard = [[
+        InlineKeyboardButton("2.0%", callback_data="settp_2.0"),
+        InlineKeyboardButton("3.0%", callback_data="settp_3.0"),
+        InlineKeyboardButton("4.0%", callback_data="settp_4.0"),
+        InlineKeyboardButton("5.0%", callback_data="settp_5.0"),
+    ]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        f"📊 *Take Profit attuale: {current}%*\nSeleziona il nuovo valore:",
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+async def cmd_set_tp_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    val = query.data.replace("settp_", "")
+    set_config_param("tp_pct", val)
+    await query.edit_message_text(f"✅ Take Profit aggiornato a `{val}%`", parse_mode=ParseMode.MARKDOWN)
+
+
+async def cmd_set_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/setcallback — Imposta callback trailing per asset con pulsanti."""
+    keyboard = [
+        [
+            InlineKeyboardButton("BTC 0.4%", callback_data="setcallback_BTC/USDT_0.4"),
+            InlineKeyboardButton("BTC 0.6%", callback_data="setcallback_BTC/USDT_0.6"),
+            InlineKeyboardButton("BTC 0.8%", callback_data="setcallback_BTC/USDT_0.8"),
+        ],
+        [
+            InlineKeyboardButton("ETH 0.6%", callback_data="setcallback_ETH/USDT_0.6"),
+            InlineKeyboardButton("ETH 0.8%", callback_data="setcallback_ETH/USDT_0.8"),
+            InlineKeyboardButton("ETH 1.0%", callback_data="setcallback_ETH/USDT_1.0"),
+        ],
+        [
+            InlineKeyboardButton("SOL 0.8%", callback_data="setcallback_SOL/USDT_0.8"),
+            InlineKeyboardButton("SOL 1.0%", callback_data="setcallback_SOL/USDT_1.0"),
+            InlineKeyboardButton("SOL 1.2%", callback_data="setcallback_SOL/USDT_1.2"),
+        ],
+    ]
+    btc = get_config_param("callback_BTC/USDT") or "0.6"
+    eth = get_config_param("callback_ETH/USDT") or "0.8"
+    sol = get_config_param("callback_SOL/USDT") or "1.0"
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        f"📊 *Callback trailing attuale:*\nBTC: `{btc}%` | ETH: `{eth}%` | SOL: `{sol}%`\nSeleziona il nuovo valore:",
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+async def cmd_set_callback_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    parts = query.data.replace("setcallback_", "").rsplit("_", 1)
+    symbol = parts[0]
+    val = parts[1]
+    set_config_param(f"callback_{symbol}", val)
+    await query.edit_message_text(f"✅ Callback {symbol} aggiornato a `{val}%`", parse_mode=ParseMode.MARKDOWN)
+
+
+async def cmd_set_trailing(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/settrailing — Imposta activation trailing% con pulsanti."""
+    current = get_config_param("trailing_activation_pct") or "1.5"
+    keyboard = [[
+        InlineKeyboardButton("1.0%", callback_data="settrailing_1.0"),
+        InlineKeyboardButton("1.5%", callback_data="settrailing_1.5"),
+        InlineKeyboardButton("2.0%", callback_data="settrailing_2.0"),
+        InlineKeyboardButton("2.5%", callback_data="settrailing_2.5"),
+    ]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        f"📊 *Trailing activation attuale: {current}%*\nSeleziona il nuovo valore:",
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+async def cmd_set_trailing_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    val = query.data.replace("settrailing_", "")
+    set_config_param("trailing_activation_pct", val)
+    await query.edit_message_text(f"✅ Trailing activation aggiornato a `{val}%`", parse_mode=ParseMode.MARKDOWN)
+
+
+async def cmd_set_atr(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/setatr — Imposta ATR min/max per asset con pulsanti."""
+    keyboard = [
+        [
+            InlineKeyboardButton("BTC min 0.10%", callback_data="setatr_min_BTC/USDT_0.10"),
+            InlineKeyboardButton("BTC min 0.15%", callback_data="setatr_min_BTC/USDT_0.15"),
+            InlineKeyboardButton("BTC min 0.20%", callback_data="setatr_min_BTC/USDT_0.20"),
+        ],
+        [
+            InlineKeyboardButton("BTC max 0.50%", callback_data="setatr_max_BTC/USDT_0.50"),
+            InlineKeyboardButton("BTC max 0.75%", callback_data="setatr_max_BTC/USDT_0.75"),
+            InlineKeyboardButton("BTC max 1.00%", callback_data="setatr_max_BTC/USDT_1.00"),
+        ],
+        [
+            InlineKeyboardButton("ETH min 0.15%", callback_data="setatr_min_ETH/USDT_0.15"),
+            InlineKeyboardButton("ETH min 0.20%", callback_data="setatr_min_ETH/USDT_0.20"),
+            InlineKeyboardButton("ETH min 0.25%", callback_data="setatr_min_ETH/USDT_0.25"),
+        ],
+        [
+            InlineKeyboardButton("ETH max 0.70%", callback_data="setatr_max_ETH/USDT_0.70"),
+            InlineKeyboardButton("ETH max 0.90%", callback_data="setatr_max_ETH/USDT_0.90"),
+            InlineKeyboardButton("ETH max 1.10%", callback_data="setatr_max_ETH/USDT_1.10"),
+        ],
+        [
+            InlineKeyboardButton("SOL min 0.25%", callback_data="setatr_min_SOL/USDT_0.25"),
+            InlineKeyboardButton("SOL min 0.30%", callback_data="setatr_min_SOL/USDT_0.30"),
+            InlineKeyboardButton("SOL min 0.35%", callback_data="setatr_min_SOL/USDT_0.35"),
+        ],
+        [
+            InlineKeyboardButton("SOL max 1.00%", callback_data="setatr_max_SOL/USDT_1.00"),
+            InlineKeyboardButton("SOL max 1.20%", callback_data="setatr_max_SOL/USDT_1.20"),
+            InlineKeyboardButton("SOL max 1.50%", callback_data="setatr_max_SOL/USDT_1.50"),
+        ],
+    ]
+    btc_min = get_config_param("atr_min_BTC/USDT") or "0.15"
+    btc_max = get_config_param("atr_max_BTC/USDT") or "0.75"
+    eth_min = get_config_param("atr_min_ETH/USDT") or "0.20"
+    eth_max = get_config_param("atr_max_ETH/USDT") or "0.90"
+    sol_min = get_config_param("atr_min_SOL/USDT") or "0.30"
+    sol_max = get_config_param("atr_max_SOL/USDT") or "1.20"
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        f"📊 *ATR filtri attuale:*\n"
+        f"BTC: `{btc_min}%` — `{btc_max}%`\n"
+        f"ETH: `{eth_min}%` — `{eth_max}%`\n"
+        f"SOL: `{sol_min}%` — `{sol_max}%`\n"
+        f"Seleziona il nuovo valore:",
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+async def cmd_set_atr_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    parts = query.data.replace("setatr_", "").split("_", 1)
+    min_or_max = parts[0]
+    rest = parts[1].rsplit("_", 1)
+    symbol = rest[0]
+    val = rest[1]
+    key = f"atr_{min_or_max}_{symbol}"
+    set_config_param(key, val)
+    await query.edit_message_text(
+        f"✅ ATR {min_or_max} {symbol} aggiornato a `{val}%`",
+        parse_mode=ParseMode.MARKDOWN
+    )      
 
 async def cmd_reset_db(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/resetdb — Resetta tutti i dati del DB con conferma."""
@@ -807,7 +992,12 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "/parametri — Parametri correnti\n"
         "/setrr — Modifica il Risk/Reward\n"
         "/setmaxloss — Modifica il daily max loss\n"
-        "/setweekend — Attiva/disattiva weekend filter\n\n"
+        "/setweekend — Attiva/disattiva weekend filter\n"
+        "/setsl — Modifica Stop Loss%\n"
+        "/settp — Modifica Take Profit%\n"
+        "/setcallback — Modifica callback trailing per asset\n"
+        "/settrailing — Modifica activation trailing%\n"
+        "/setatr — Modifica ATR min/max per asset\n\n"
         "🔧 *Altro*\n"
         "/test — Notifica di prova\n"
         "/resetdb — Resetta tutti i dati del DB\n"
@@ -857,6 +1047,16 @@ def start_telegram_bot(shutdown_event: "threading.Event | None" = None) -> None:
     app.add_handler(CallbackQueryHandler(cmd_reset_db_callback, pattern="^resetdb_"))
     app.add_handler(CommandHandler("setweekend", cmd_set_weekend))
     app.add_handler(CallbackQueryHandler(cmd_set_weekend_callback, pattern="^setweekend_"))
+    app.add_handler(CommandHandler("setsl", cmd_set_sl))
+    app.add_handler(CallbackQueryHandler(cmd_set_sl_callback, pattern="^setsl_"))
+    app.add_handler(CommandHandler("settp", cmd_set_tp))
+    app.add_handler(CallbackQueryHandler(cmd_set_tp_callback, pattern="^settp_"))
+    app.add_handler(CommandHandler("setcallback", cmd_set_callback))
+    app.add_handler(CallbackQueryHandler(cmd_set_callback_callback, pattern="^setcallback_"))
+    app.add_handler(CommandHandler("settrailing", cmd_set_trailing))
+    app.add_handler(CallbackQueryHandler(cmd_set_trailing_callback, pattern="^settrailing_"))
+    app.add_handler(CommandHandler("setatr", cmd_set_atr))
+    app.add_handler(CallbackQueryHandler(cmd_set_atr_callback, pattern="^setatr_"))
 
     app.add_handler(CommandHandler("start",       cmd_start))
     app.add_handler(CommandHandler("stop",        cmd_stop))

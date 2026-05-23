@@ -21,6 +21,17 @@ from config import (
     TRAILING_CALLBACK, ATR_FILTERS,
     TF_SIGNAL, TF_ENTRY, PATTERNS_ENABLED,
 )
+
+def _get_param(key, default):
+    """Legge un parametro dal DB, fallback al valore default."""
+    try:
+        from database import get_config_param
+        val = get_config_param(key)
+        if val is not None:
+            return float(val)
+    except Exception:
+        pass
+    return default
 logger = logging.getLogger(__name__)
 
 
@@ -140,16 +151,22 @@ def trend_ok(df: pd.DataFrame, direction: str) -> bool:
 def classify_atr(symbol: str, atr: float, price: float) -> str:
     """
     Classifica la volatilità ATR% rispetto ai filtri per asset.
+    Legge i valori min/max dal DB, fallback a config.py.
     Restituisce: IDEAL_VOLATILITY, VALID_BUT_NOT_IDEAL,
                  NO_TRADE_LOW_VOLATILITY, NO_TRADE_HIGH_VOLATILITY
     """
     atr_pct = atr / price * 100
     f = ATR_FILTERS.get(symbol, {"min": 0.15, "ideal_min": 0.25, "ideal_max": 0.55, "max": 0.75})
-    if atr_pct < f["min"]:
+    atr_min = _get_param(f"atr_min_{symbol}", f["min"])
+    atr_max = _get_param(f"atr_max_{symbol}", f["max"])
+    ideal_min = f["ideal_min"]
+    ideal_max = f["ideal_max"]
+
+    if atr_pct < atr_min:
         return "NO_TRADE_LOW_VOLATILITY"
-    if atr_pct > f["max"]:
+    if atr_pct > atr_max:
         return "NO_TRADE_HIGH_VOLATILITY"
-    if f["ideal_min"] <= atr_pct <= f["ideal_max"]:
+    if ideal_min <= atr_pct <= ideal_max:
         return "IDEAL_VOLATILITY"
     return "VALID_BUT_NOT_IDEAL"
 
@@ -401,15 +418,17 @@ def check_signal_decay(current_price: float, pdh: float, pdl: float,
 def calc_sl_tp(entry: float, direction: str) -> tuple[float, float]:
     """
     Calcola Stop Loss e Take Profit con percentuali fisse.
-    SL: 1.5% dall'entry
-    TP: 3.0% dall'entry
+    Legge SL% e TP% dal DB, fallback a config.py.
     """
+    sl_pct = _get_param("sl_pct", SL_PCT * 100) / 100
+    tp_pct = _get_param("tp_pct", TP_PCT * 100) / 100
+
     if direction == "long":
-        sl = entry * (1 - SL_PCT)
-        tp = entry * (1 + TP_PCT)
+        sl = entry * (1 - sl_pct)
+        tp = entry * (1 + tp_pct)
     else:
-        sl = entry * (1 + SL_PCT)
-        tp = entry * (1 - TP_PCT)
+        sl = entry * (1 + sl_pct)
+        tp = entry * (1 - tp_pct)
 
     return round(sl, 6), round(tp, 6)
 
@@ -515,7 +534,8 @@ def place_trailing_order(exchange, symbol: str, side: str,
         raw_symbol = market["id"]
         qty_precise = exchange.amount_to_precision(symbol, qty)
         activation_precise = exchange.price_to_precision(symbol, activation_price)
-        callback_rate = TRAILING_CALLBACK.get(symbol, 0.6)
+        default_callback = TRAILING_CALLBACK.get(symbol, 0.6)
+        callback_rate = _get_param(f"callback_{symbol}", default_callback)
 
         algo_order = exchange.fapiPrivatePostAlgoOrder({
             "algoType": "CONDITIONAL",

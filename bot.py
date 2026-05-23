@@ -247,10 +247,12 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
         # --- Calcola activation price trailing ---
         oco_side = "sell" if direction == "long" else "buy"
 
+        from database import get_config_param
+        trailing_act_pct = float(get_config_param("trailing_activation_pct") or config.TRAILING_ACTIVATION_PCT * 100) / 100
         if direction == "long":
-            activation_price = round(entry * (1 + config.TRAILING_ACTIVATION_PCT), 6)
+            activation_price = round(entry * (1 + trailing_act_pct), 6)
         else:
-            activation_price = round(entry * (1 - config.TRAILING_ACTIVATION_PCT), 6)
+            activation_price = round(entry * (1 - trailing_act_pct), 6)
 
         # Piazza TP e SL — trailing verrà piazzato in monitor_open_trades
         tp_order = place_tp_order(exchange, symbol, oco_side, qty, tp)
