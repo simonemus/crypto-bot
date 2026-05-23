@@ -15,7 +15,7 @@ from binance_api import (
     get_previous_day_hl, check_breakout, check_retest,
     detect_pattern, trend_ok, atr_ok,
     calc_sl_tp, calc_quantity,
-    place_market_order, place_tp_order, place_trailing_order,
+    place_market_order, place_tp_order, place_sl_order, place_trailing_order,
     close_position_market, cancel_all_orders, cancel_algo_orders,
     get_balance_usdt, get_ticker_price,
     check_signal_decay, set_leverage_all,
@@ -241,8 +241,9 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
             tp = round(entry - sl_dist * config.TP_RR, 6)
             activation_price = round(entry - sl_dist, 2)
 
-        # Piazza solo il TP — trailing verrà piazzato in monitor_open_trades
+        # Piazza TP e SL — trailing verrà piazzato in monitor_open_trades
         place_tp_order(exchange, symbol, oco_side, qty, tp)
+        place_sl_order(exchange, symbol, oco_side, qty, sl)
 
         open_trades[symbol] = {
             "direction":        direction,

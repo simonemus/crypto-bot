@@ -466,6 +466,34 @@ def place_tp_order(exchange, symbol: str, side: str,
         return {}
 
 
+def place_sl_order(exchange, symbol: str, side: str,
+                   qty: float, sl: float) -> dict:
+    """
+    Piazza Stop Loss Market reduceOnly.
+    side: lato di uscita.
+    - Se posizione LONG: side='sell'
+    - Se posizione SHORT: side='buy'
+    """
+    try:
+        sl_price = exchange.price_to_precision(symbol, sl)
+        sl_order = exchange.create_order(
+            symbol,
+            "STOP_MARKET",
+            side,
+            qty,
+            params={
+                "stopPrice": sl_price,
+                "workingType": "MARK_PRICE",
+                "reduceOnly": True,
+            }
+        )
+        logger.info(f"SL order piazzato: {symbol} {side.upper()} stop={sl_price}")
+        return sl_order
+    except Exception as e:
+        logger.error(f"Errore SL order {symbol}: {e}")
+        return {}
+
+
 def place_trailing_order(exchange, symbol: str, side: str,
                          qty: float, atr: float,
                          activation_price: float) -> dict:
