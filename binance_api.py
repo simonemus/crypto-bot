@@ -649,7 +649,7 @@ def get_open_positions(exchange) -> list[dict]:
         return []
 
 
-ddef normalize_symbol(symbol: str) -> str:
+def normalize_symbol(symbol: str) -> str:
     """Normalizza il simbolo rimuovendo il suffisso :USDT."""
     return symbol.replace(":USDT", "")
 
