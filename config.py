@@ -42,15 +42,27 @@ EMA_FAST     = 20
 EMA_SLOW     = 50
 
 # ── GESTIONE RISCHIO ──────────────────────────────────────────
-RISK_REWARD_RATIO   = 2.0    # RR per activation trailing (+1R)
-TP_RR               = 3.0    # RR fisso per il Take Profit
-MAX_RISK_ATR        = 1.30   # SL = entry ± ATR * MAX_RISK_ATR
 BREAKOUT_BUFFER     = 0.20   # % di buffer sopra/sotto PDH/PDL
 RETEST_BUFFER       = 0.50   # % di tolleranza per il retest
-RISK_PER_TRADE_PCT  = 1.0    # % del capitale da rischiare per trade (rischio reale su SL)
-MAX_MARGIN_PCT      = 10.0   # % massima del capitale usabile come margine per singolo trade
-MAX_POSITION_USDT   = 1000.0 # valore massimo posizione in USDT (fisso)
 SIGNAL_DECAY_BUFFER = 0.80   # % massima distanza dal livello rotto prima che il segnale decada
+
+SL_PCT                  = 0.015  # Stop Loss fisso 1.5%
+TP_PCT                  = 0.030  # Take Profit fisso 3.0%
+TRAILING_ACTIVATION_PCT = 0.015  # Trailing attivo a +1.5%
+RISK_USDT               = 15.0   # Rischio fisso per trade in USDT
+MAX_MARGIN_USDT         = 500.0  # Margine massimo per trade in USDT
+
+TRAILING_CALLBACK = {
+    "BTC/USDT": 0.6,
+    "ETH/USDT": 0.8,
+    "SOL/USDT": 1.0,
+}
+
+ATR_FILTERS = {
+    "BTC/USDT": {"min": 0.15, "ideal_min": 0.25, "ideal_max": 0.55, "max": 0.75},
+    "ETH/USDT": {"min": 0.20, "ideal_min": 0.30, "ideal_max": 0.65, "max": 0.90},
+    "SOL/USDT": {"min": 0.30, "ideal_min": 0.45, "ideal_max": 0.90, "max": 1.20},
+}
    
 # ── LIMITI OPERATIVI ─────────────────────────────────────────
 MAX_TRADES_PER_DAY_PER_ASSET = 1

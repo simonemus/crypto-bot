@@ -16,7 +16,9 @@ from config import (
     BINANCE_FUTURES_LIVE_API_KEY,    BINANCE_FUTURES_LIVE_API_SECRET,
     BINANCE_LIVE_API_KEY,            BINANCE_LIVE_API_SECRET,
     ATR_PERIOD, EMA_FAST, EMA_SLOW,
-    MAX_RISK_ATR, MAX_POSITION_USDT, TP_RR,
+    SL_PCT, TP_PCT, TRAILING_ACTIVATION_PCT,
+    RISK_USDT, MAX_MARGIN_USDT,
+    TRAILING_CALLBACK, ATR_FILTERS,
     TF_SIGNAL, TF_ENTRY, PATTERNS_ENABLED,
 )
 logger = logging.getLogger(__name__)
@@ -135,11 +137,21 @@ def trend_ok(df: pd.DataFrame, direction: str) -> bool:
         return last["ema_fast"] < last["ema_slow"]
 
 
-def atr_ok(df: pd.DataFrame, entry: float, stop: float) -> bool:
-    """Verifica che la distanza SL non superi MAX_RISK_ATR * ATR."""
-    atr = df.iloc[-2]["atr"]
-    sl_distance = abs(entry - stop)
-    return sl_distance <= MAX_RISK_ATR * atr
+def classify_atr(symbol: str, atr: float, price: float) -> str:
+    """
+    Classifica la volatilità ATR% rispetto ai filtri per asset.
+    Restituisce: IDEAL_VOLATILITY, VALID_BUT_NOT_IDEAL,
+                 NO_TRADE_LOW_VOLATILITY, NO_TRADE_HIGH_VOLATILITY
+    """
+    atr_pct = atr / price * 100
+    f = ATR_FILTERS.get(symbol, {"min": 0.15, "ideal_min": 0.25, "ideal_max": 0.55, "max": 0.75})
+    if atr_pct < f["min"]:
+        return "NO_TRADE_LOW_VOLATILITY"
+    if atr_pct > f["max"]:
+        return "NO_TRADE_HIGH_VOLATILITY"
+    if f["ideal_min"] <= atr_pct <= f["ideal_max"]:
+        return "IDEAL_VOLATILITY"
+    return "VALID_BUT_NOT_IDEAL"
 
 
 # ── CANDLESTICK PATTERNS ──────────────────────────────────────
@@ -386,48 +398,40 @@ def check_signal_decay(current_price: float, pdh: float, pdl: float,
 
 # ── CALCOLO SL / TP ───────────────────────────────────────────
 
-def calc_sl_tp(entry: float, direction: str, atr: float, rr: float) -> tuple[float, float]:
+def calc_sl_tp(entry: float, direction: str) -> tuple[float, float]:
     """
-    Calcola Stop Loss e Take Profit.
-    SL distante MAX_RISK_ATR * ATR dall'entry.
-    TP = entry ± (SL_distance * RR)
+    Calcola Stop Loss e Take Profit con percentuali fisse.
+    SL: 1.5% dall'entry
+    TP: 3.0% dall'entry
     """
-    sl_dist = MAX_RISK_ATR * atr
     if direction == "long":
-        sl = entry - sl_dist
-        tp = entry + sl_dist * rr
+        sl = entry * (1 - SL_PCT)
+        tp = entry * (1 + TP_PCT)
     else:
-        sl = entry + sl_dist
-        tp = entry - sl_dist * rr
+        sl = entry * (1 + SL_PCT)
+        tp = entry * (1 - TP_PCT)
 
     return round(sl, 6), round(tp, 6)
 
 
-def calc_quantity(exchange, symbol: str, entry: float,
-                  sl: float, capital_usdt: float, risk_pct: float,
-                  leverage: int = 2) -> float:
+def calc_quantity(exchange, symbol: str, entry: float) -> float:
     """
-    Calcola la quantità in base al rischio reale per trade.
-    Rischio 1% = perdi esattamente 1% del capitale se SL colpito.
-    Cap di sicurezza: valore posizione mai superiore a 1000 USDT.
+    Calcola la quantità in base al rischio fisso per trade.
+    RISK_USDT = 15 USDT
+    SL_PCT = 1.5%
+    Quantità = RISK_USDT / (entry * SL_PCT)
+    Cap: margine massimo 500 USDT con leva 2x → posizione max 1000 USDT
     """
-    # Rischio reale in USDT
-    risk_usdt = capital_usdt * (risk_pct / 100)
+    # Quantità = rischio / (entry * SL%)
+    qty = RISK_USDT / (entry * SL_PCT)
 
-    # Distanza SL in USDT
-    sl_dist = abs(entry - sl)
-    if sl_dist == 0:
-        return 0.0
-
-    # Quantità = rischio / distanza SL
-    qty = risk_usdt / sl_dist
-
-    # Cap di sicurezza — valore posizione massimo fisso
+    # Cap margine — posizione max 1000 USDT
     position_value = qty * entry
+    max_position = MAX_MARGIN_USDT * 2  # leva 2x
 
-    if position_value > MAX_POSITION_USDT:
-        logger.warning(f"Quantità ridotta per cap posizione: {qty:.6f} → {MAX_POSITION_USDT/entry:.6f}")
-        qty = MAX_POSITION_USDT / entry
+    if position_value > max_position:
+        logger.warning(f"Quantità ridotta per cap margine: {qty:.6f} → {max_position/entry:.6f}")
+        qty = max_position / entry
 
     # Arrotonda alla precisione del mercato
     qty = float(exchange.amount_to_precision(symbol, qty))
@@ -500,32 +504,35 @@ def place_sl_order(exchange, symbol: str, side: str,
 
 
 def place_trailing_order(exchange, symbol: str, side: str,
-                         qty: float, atr: float,
-                         activation_price: float) -> dict:
+                         qty: float, activation_price: float) -> dict:
     """
-    Piazza il trailing stop quando il prezzo raggiunge +1R.
-    Callback rate dinamico basato su sl_dist.
+    Piazza il trailing stop quando il prezzo raggiunge +1.5%.
+    Callback rate fisso per asset da config.
     """
     try:
-        sl_dist = atr * MAX_RISK_ATR
-        callback_pct = (sl_dist * 0.5) / activation_price * 100
-        callback_rate = round(max(0.2, callback_pct), 1)
+        market = exchange.market(symbol)
+        raw_symbol = market["id"]
+        qty_precise = exchange.amount_to_precision(symbol, qty)
+        activation_precise = exchange.price_to_precision(symbol, activation_price)
+        callback_rate = TRAILING_CALLBACK.get(symbol, 0.6)
 
-        raw_symbol = symbol.replace("/", "").replace(":USDT", "")
         algo_order = exchange.fapiPrivatePostAlgoOrder({
             "algoType": "CONDITIONAL",
             "symbol": raw_symbol,
             "side": side.upper(),
             "type": "TRAILING_STOP_MARKET",
-            "quantity": str(qty),
+            "quantity": str(qty_precise),
             "callbackRate": str(callback_rate),
-            "activatePrice": str(round(activation_price, 2)),
+            "activatePrice": str(activation_precise),
             "workingType": "MARK_PRICE",
             "reduceOnly": "true",
+            "clientAlgoId": f"trail_{raw_symbol}_{int(time.time())}",
+            "newOrderRespType": "RESULT",
         })
         logger.info(
-            f"Trailing Stop piazzato: callbackRate={callback_rate}% "
-            f"activationPrice={activation_price} algoId={algo_order.get('algoId')}"
+            f"Trailing Stop piazzato: symbol={symbol} side={side.upper()} "
+            f"callbackRate={callback_rate}% activatePrice={activation_precise} "
+            f"algoId={algo_order.get('algoId')}"
         )
         return algo_order
     except Exception as e:

@@ -13,7 +13,7 @@ import config
 from binance_api import (
     get_exchange, fetch_ohlcv, add_indicators,
     get_previous_day_hl, check_breakout, check_retest,
-    detect_pattern, trend_ok, atr_ok,
+    detect_pattern, trend_ok, classify_atr,
     calc_sl_tp, calc_quantity,
     place_market_order, place_tp_order, place_sl_order, place_trailing_order,
     close_position_market, cancel_all_orders, cancel_algo_orders, cancel_all_symbol_orders,
@@ -204,16 +204,25 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
         # --- Calcolo entry / SL / TP ---
         entry = get_ticker_price(exchange, symbol)
         atr_val = float(df_15.iloc[-2]["atr"])
-        sl, _ = calc_sl_tp(entry, direction, atr_val, rr)
 
-        if not atr_ok(df_15, entry, sl):
-            logger.info(f"{symbol} — filtro ATR fallito (SL troppo lontano)")
+        # Filtro ATR% — verifica volatilità min/max
+        atr_class = classify_atr(symbol, atr_val, entry)
+        atr_pct = atr_val / entry * 100
+        logger.info(f"{symbol} — ATR%: {atr_pct:.3f}% — {atr_class}")
+        if atr_class == "NO_TRADE_LOW_VOLATILITY":
+            logger.info(f"{symbol} — ATR troppo basso, skip")
+            increment_filter_stat(symbol, "scartati_atr")
+            return
+        if atr_class == "NO_TRADE_HIGH_VOLATILITY":
+            logger.info(f"{symbol} — ATR troppo alto, skip")
             increment_filter_stat(symbol, "scartati_atr")
             return
 
+        # SL e TP percentuali fissi
+        sl, tp = calc_sl_tp(entry, direction)
+
         # --- Dimensionamento posizione ---
-        capital = get_balance_usdt(exchange)
-        qty = calc_quantity(exchange, symbol, entry, sl, capital, config.RISK_PER_TRADE_PCT)
+        qty = calc_quantity(exchange, symbol, entry)
         if qty <= 0:
             logger.warning(f"{symbol} — qty calcolata = 0, skip")
             return
@@ -233,17 +242,13 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
                 logger.info(f"{symbol} — posizione non aperta su Binance, skip")
                 return
 
-        # --- TP fisso a RR 3.0 + Trailing piazzato dopo a +1R ---
+        # --- Calcola activation price trailing ---
         oco_side = "sell" if direction == "long" else "buy"
 
-        # Calcola TP a RR 3.0
-        sl_dist = abs(entry - sl)
         if direction == "long":
-            tp = round(entry + sl_dist * config.TP_RR, 6)
-            activation_price = round(entry + sl_dist, 2)
+            activation_price = round(entry * (1 + config.TRAILING_ACTIVATION_PCT), 6)
         else:
-            tp = round(entry - sl_dist * config.TP_RR, 6)
-            activation_price = round(entry - sl_dist, 2)
+            activation_price = round(entry * (1 - config.TRAILING_ACTIVATION_PCT), 6)
 
         # Piazza TP e SL — trailing verrà piazzato in monitor_open_trades
         tp_order = place_tp_order(exchange, symbol, oco_side, qty, tp)
@@ -275,8 +280,8 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
         clear_breakout(symbol)
 
         # Calcola e salva il buffer dinamico usato al momento del breakout
-        atr_pct = atr_val / entry
-        buf_used = round(max(0.0020, atr_pct * 1.5) * 100, 4)
+        atr_pct_buf = atr_val / entry
+        buf_used = round(max(0.0020, atr_pct_buf * 1.5) * 100, 4)
         log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=atr_val, breakout_buffer=buf_used)
         increment_filter_stat(symbol, "trade_aperti")
         send_message(
@@ -284,7 +289,8 @@ def scan_symbol(exchange, symbol: str, rr: float) -> None:
             f"Direzione: {direction.upper()}\n"
             f"Entry: {entry:.4f} | SL: {sl:.4f} | TP: {tp:.4f}\n"
             f"Qty: {qty} | Pattern: {pattern.replace('_', ' ')}\n"
-            f"RR: {config.TP_RR} | Trailing da: {activation_price:.4f}"
+            f"SL: {config.SL_PCT*100:.1f}% | TP: {config.TP_PCT*100:.1f}% | "
+            f"Trailing da: {activation_price:.4f} | ATR: {atr_class}"
         )
 
     except Exception as e:
@@ -306,7 +312,7 @@ def monitor_open_trades(exchange) -> None:
             hit = None
             oco_side = "sell" if direction == "long" else "buy"
 
-            # Piazza trailing quando prezzo raggiunge +1R
+            # Piazza trailing quando prezzo raggiunge +1.5%
             if not trade.get("trailing_placed", False):
                 activation = trade.get("activation_price")
                 if activation:
@@ -317,11 +323,15 @@ def monitor_open_trades(exchange) -> None:
                     if should_place:
                         trailing_order = place_trailing_order(
                             exchange, symbol, oco_side,
-                            trade["qty"], trade["atr"], activation
+                            trade["qty"], activation
                         )
                         if trailing_order:
                             open_trades[symbol]["trailing_placed"] = True
-                            send_message(f"🎯 Trailing attivato — {symbol}\nPrezzo: {price:.4f} | Activation: {activation:.4f}")
+                            send_message(
+                                f"🎯 Trailing attivato — {symbol}\n"
+                                f"Prezzo: {price:.4f} | Activation: {activation:.4f}\n"
+                                f"Callback: {config.TRAILING_CALLBACK.get(symbol, 0.6)}%"
+                            )
                         else:
                             logger.error(f"{symbol} — trailing NON piazzato, riprovo al prossimo ciclo")
                             send_error(f"⚠️ {symbol} — trailing non piazzato, SL fisso resta attivo")
@@ -347,13 +357,17 @@ def monitor_open_trades(exchange) -> None:
                     hit = "closed_by_binance"
 
             if hit:
-                # Cancella ordini normali e Algo — ignora errori se Binance ha già chiuso
+                # Cancella ordini normali e Algo
                 try:
                     cancel_all_symbol_orders(exchange, symbol)
                 except Exception:
                     pass
+                # Chiude posizione solo se ancora aperta su Binance
                 try:
-                    close_position_market(exchange, symbol, direction, trade["qty"])
+                    if has_open_position(exchange, symbol):
+                        close_position_market(exchange, symbol, direction, trade["qty"])
+                    else:
+                        logger.info(f"{symbol} — posizione già chiusa su Binance, non invio market close")
                 except Exception:
                     pass
 
@@ -370,15 +384,19 @@ def monitor_open_trades(exchange) -> None:
                     exit_reason = "sl"
                     msg = f"🔴 Stop Loss — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
                 elif hit == "closed_by_binance":
-                    if pnl_pct > 0:
-                        exit_reason = "trailing_win"
-                        msg = f"📈 Trailing Win — {symbol}\nExit: {price:.4f} | PnL: +{pnl_pct}%"
-                    elif pnl_pct < 0:
-                        exit_reason = "trailing_loss"
-                        msg = f"📉 Trailing Loss — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
+                    if trade.get("trailing_placed", False):
+                        if pnl_pct > 0:
+                            exit_reason = "trailing_win"
+                            msg = f"📈 Trailing Win — {symbol}\nExit: {price:.4f} | PnL: +{pnl_pct}%"
+                        elif pnl_pct < 0:
+                            exit_reason = "trailing_loss"
+                            msg = f"📉 Trailing Loss — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
+                        else:
+                            exit_reason = "breakeven"
+                            msg = f"⚖️ Breakeven — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
                     else:
-                        exit_reason = "breakeven"
-                        msg = f"⚖️ Breakeven — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
+                        exit_reason = "sl"
+                        msg = f"🔴 Stop Loss — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
 
                 log_trade_close(symbol, price, exit_reason, pnl_pct, exit_reason=exit_reason)
                 to_remove.append(symbol)
