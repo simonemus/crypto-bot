@@ -72,8 +72,9 @@ def in_session() -> bool:
     now = now_utc()
     weekend_filter = get_config_param("weekend_filter")
     if weekend_filter is None:
-        weekend_filter = str(config.WEEKEND_FILTER).lower()
-    if weekend_filter == "true" and is_weekend():
+        weekend_filter = config.WEEKEND_FILTER
+    weekend_filter_enabled = str(weekend_filter).lower() == "true"
+    if weekend_filter_enabled and is_weekend():
         return False
     return config.SESSION_START_HOUR <= now.hour < config.SESSION_END_HOUR
 
