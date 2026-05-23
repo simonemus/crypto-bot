@@ -503,8 +503,8 @@ def place_trailing_order(exchange, symbol: str, side: str,
     """
     try:
         sl_dist = atr * MAX_RISK_ATR
-        callback_pct = round((sl_dist * 0.5) / activation_price * 100, 3)
-        callback_rate = max(0.1, callback_pct)
+        callback_pct = (sl_dist * 0.5) / activation_price * 100
+        callback_rate = round(max(0.2, callback_pct), 1)
 
         raw_symbol = symbol.replace("/", "").replace(":USDT", "")
         algo_order = exchange.fapiPrivatePostAlgoOrder({
@@ -529,27 +529,46 @@ def place_trailing_order(exchange, symbol: str, side: str,
 
 
 def cancel_all_orders(exchange: ccxt.binance, symbol: str) -> None:
-    """Cancella tutti gli ordini aperti su un simbolo (forza chiusura)."""
+    """Cancella tutti gli ordini standard aperti su un simbolo."""
     try:
         exchange.cancel_all_orders(symbol)
-        logger.info(f"Tutti gli ordini cancellati per {symbol}")
+        logger.info(f"Tutti gli ordini standard cancellati per {symbol}")
     except Exception as e:
         logger.error(f"Errore nella cancellazione ordini {symbol}: {e}")
 
 
 def cancel_algo_orders(exchange, symbol: str) -> None:
-    """Cancella tutti gli ordini Algo aperti su un simbolo."""
+    """
+    Cancella tutti gli ordini Algo aperti su un simbolo.
+    Usa DELETE /fapi/v1/algoOpenOrders.
+    """
     try:
-        raw_symbol = symbol.replace("/", "").replace(":USDT", "")
-        open_algos = exchange.fapiPrivateGetAlgoOrders({"symbol": raw_symbol})
-        orders = open_algos.get("orders", [])
-        for order in orders:
-            algo_id = order.get("algoId")
-            if algo_id:
-                exchange.fapiPrivateDeleteAlgoOrder({"algoId": algo_id})
-                logger.info(f"Ordine Algo {algo_id} cancellato per {symbol}")
-        if not orders:
-            logger.info(f"Nessun ordine Algo aperto per {symbol}")
+        market = exchange.market(symbol)
+        raw_symbol = market["id"]
+        response = exchange.fapiPrivateDeleteAlgoOpenOrders({
+            "symbol": raw_symbol
+        })
+        logger.info(f"Algo orders cancellati per {symbol}: {response}")
+    except AttributeError:
+        logger.error(
+            f"Metodo fapiPrivateDeleteAlgoOpenOrders non trovato in CCXT — "
+            f"verifica dir(exchange) per il nome corretto"
+        )
+    except Exception as e:
+        logger.error(f"Errore cancellazione ordini Algo {symbol}: {e}")
+
+
+def cancel_all_symbol_orders(exchange, symbol: str) -> None:
+    """
+    Cancella sia ordini standard sia ordini Algo.
+    Da usare in force close, monitor e chiusure critiche.
+    """
+    try:
+        cancel_all_orders(exchange, symbol)
+    except Exception as e:
+        logger.error(f"Errore cancellazione ordini standard {symbol}: {e}")
+    try:
+        cancel_algo_orders(exchange, symbol)
     except Exception as e:
         logger.error(f"Errore cancellazione ordini Algo {symbol}: {e}")        
 

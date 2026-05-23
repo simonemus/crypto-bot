@@ -16,7 +16,7 @@ from binance_api import (
     detect_pattern, trend_ok, atr_ok,
     calc_sl_tp, calc_quantity,
     place_market_order, place_tp_order, place_sl_order, place_trailing_order,
-    close_position_market, cancel_all_orders, cancel_algo_orders,
+    close_position_market, cancel_all_orders, cancel_algo_orders, cancel_all_symbol_orders,
     get_balance_usdt, get_ticker_price,
     check_signal_decay, set_leverage_all,
     has_open_position, get_exchange_with_retry,
@@ -328,11 +328,7 @@ def monitor_open_trades(exchange) -> None:
             if hit:
                 # Cancella ordini normali e Algo — ignora errori se Binance ha già chiuso
                 try:
-                    cancel_all_orders(exchange, symbol)
-                except Exception:
-                    pass
-                try:
-                    cancel_algo_orders(exchange, symbol)
+                    cancel_all_symbol_orders(exchange, symbol)
                 except Exception:
                     pass
                 try:
@@ -395,8 +391,7 @@ def force_close_all(exchange) -> None:
 
     for symbol, trade in list(open_trades.items()):
         try:
-            cancel_all_orders(exchange, symbol)
-            cancel_algo_orders(exchange, symbol)
+            cancel_all_symbol_orders(exchange, symbol)
             price = get_ticker_price(exchange, symbol)
             close_position_market(exchange, symbol, trade["direction"], trade["qty"])
 
