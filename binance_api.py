@@ -556,11 +556,20 @@ def cancel_algo_orders(exchange, symbol: str) -> None:
 
 def close_position_market(exchange: ccxt.binance, symbol: str,
                            direction: str, qty: float) -> dict | None:
-    """Chiude una posizione aperta con ordine market."""
+    """Chiude una posizione aperta con ordine market reduceOnly."""
     side = "sell" if direction == "long" else "buy"
     try:
-        order = place_market_order(exchange, symbol, side, qty)
-        logger.info(f"Posizione {direction} chiusa: {order}")
+        quantity = exchange.amount_to_precision(symbol, qty)
+        order = exchange.create_order(
+            symbol,
+            "market",
+            side,
+            quantity,
+            params={
+                "reduceOnly": True
+            }
+        )
+        logger.info(f"Posizione {direction} chiusa reduceOnly: {order}")
         return order
     except Exception as e:
         logger.error(f"Errore chiusura posizione {symbol}: {e}")
