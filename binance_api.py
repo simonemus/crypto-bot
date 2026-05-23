@@ -449,20 +449,25 @@ def place_market_order(exchange: ccxt.binance, symbol: str,
 
 def place_tp_order(exchange, symbol: str, side: str,
                    qty: float, tp: float) -> dict:
-    """Piazza solo il Take Profit Market."""
+    """Piazza Take Profit Market reduceOnly."""
     try:
+        tp_price = exchange.price_to_precision(symbol, tp)
+        qty_precise = exchange.amount_to_precision(symbol, qty)
         tp_order = exchange.create_order(
-            symbol, "TAKE_PROFIT_MARKET", side, qty,
+            symbol,
+            "TAKE_PROFIT_MARKET",
+            side,
+            qty_precise,
             params={
-                "stopPrice": tp,
-                "closePosition": True,
+                "stopPrice": tp_price,
                 "workingType": "MARK_PRICE",
+                "reduceOnly": True,
             }
         )
-        logger.info(f"TP order piazzato: {tp}")
+        logger.info(f"TP order piazzato: {symbol} {side.upper()} trigger={tp_price}")
         return tp_order
     except Exception as e:
-        logger.error(f"Errore TP order: {e}")
+        logger.error(f"Errore TP order {symbol}: {e}")
         return {}
 
 
