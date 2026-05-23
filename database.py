@@ -93,6 +93,9 @@ def init_db():
             INSERT INTO config (key, value, updated_at)
             VALUES ('max_loss', '2.0', now())
             ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('weekend_filter', 'true', now())
+            ON CONFLICT (key) DO NOTHING;
 
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS atr numeric;
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS breakout_buffer numeric;

@@ -488,7 +488,7 @@ async def cmd_parametri(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"Daily max loss: `{get_config_param('max_loss') or config.DAILY_MAX_LOSS_PCT}%`\n"
         f"Trailing callback: `dinamico (ATR × 0.5)`\n"
         f"Sessione: `{config.SESSION_START_HOUR}:00–{config.SESSION_END_HOUR}:00 UTC`\n"
-        f"Weekend filter: `{'ON' if config.WEEKEND_FILTER else 'OFF'}`\n"
+        f"Weekend filter: `{'ON' if (get_config_param('weekend_filter') or str(config.WEEKEND_FILTER).lower()) == 'true' else 'OFF'}`\n"
         f"Testnet: `{'SI' if config.TESTNET else 'NO'}`"
     )
     await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
@@ -529,26 +529,6 @@ async def cmd_set(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             )
         except ValueError:
             await update.message.reply_text("⚠️ Valore non valido. Max loss deve essere tra 0.5 e 10.")
-    elif param == "trailing":
-        try:
-            if len(args) < 3:
-                raise ValueError
-            asset = args[1].upper()
-            tr_val = float(args[2])
-            symbol = f"{asset}/USDT"
-            if symbol not in config.SYMBOLS:
-                raise ValueError
-            if not (0.1 <= tr_val <= 10):
-                raise ValueError
-            set_config_param(f"trailing_{symbol}", str(tr_val))
-            await update.message.reply_text(
-                f"✅ Trailing {symbol} aggiornato a `{tr_val}%`", parse_mode=ParseMode.MARKDOWN
-            )
-        except ValueError:
-            await update.message.reply_text(
-                "⚠️ Uso: `/set trailing BTC 0.5`\nAsset: BTC, ETH, SOL. Valore tra 0.1 e 10.",
-                parse_mode=ParseMode.MARKDOWN
-            )
     else:
         await update.message.reply_text(f"⚠️ Parametro `{param}` non riconosciuto.")
 
@@ -746,7 +726,33 @@ async def cmd_set_maxloss_callback(update: Update, ctx: ContextTypes.DEFAULT_TYP
     await query.answer()
     val = query.data.replace("setmaxloss_", "")
     set_config_param("max_loss", val)
-    await query.edit_message_text(f"✅ Daily max loss aggiornato a `{val}%`", parse_mode=ParseMode.MARKDOWN)   
+    await query.edit_message_text(f"✅ Daily max loss aggiornato a `{val}%`", parse_mode=ParseMode.MARKDOWN)
+
+    async def cmd_set_weekend(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/setweekend — Attiva o disattiva il weekend filter."""
+    current = get_config_param("weekend_filter") or "true"
+    status = "ON" if current == "true" else "OFF"
+    keyboard = [[
+        InlineKeyboardButton("✅ ON", callback_data="setweekend_true"),
+        InlineKeyboardButton("❌ OFF", callback_data="setweekend_false"),
+    ]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        f"📊 *Weekend filter attuale: {status}*\nSeleziona il nuovo valore:",
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+async def cmd_set_weekend_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    val = query.data.replace("setweekend_", "")
+    set_config_param("weekend_filter", val)
+    status = "ON" if val == "true" else "OFF"
+    await query.edit_message_text(
+        f"✅ Weekend filter aggiornato a *{status}*",
+        parse_mode=ParseMode.MARKDOWN
+    )   
 
 async def cmd_reset_db(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/resetdb — Resetta tutti i dati del DB con conferma."""
@@ -801,7 +807,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "/parametri — Parametri correnti\n"
         "/setrr — Modifica il Risk/Reward\n"
         "/setmaxloss — Modifica il daily max loss\n"
-        "/settrailing — Modifica il trailing stop per asset\n\n"
+        "/setweekend — Attiva/disattiva weekend filter\n\n"
         "🔧 *Altro*\n"
         "/test — Notifica di prova\n"
         "/resetdb — Resetta tutti i dati del DB\n"
@@ -849,6 +855,8 @@ def start_telegram_bot(shutdown_event: "threading.Event | None" = None) -> None:
     app.add_handler(CallbackQueryHandler(cmd_set_maxloss_callback, pattern="^setmaxloss_"))
     app.add_handler(CommandHandler("resetdb", cmd_reset_db))
     app.add_handler(CallbackQueryHandler(cmd_reset_db_callback, pattern="^resetdb_"))
+    app.add_handler(CommandHandler("setweekend", cmd_set_weekend))
+    app.add_handler(CallbackQueryHandler(cmd_set_weekend_callback, pattern="^setweekend_"))
 
     app.add_handler(CommandHandler("start",       cmd_start))
     app.add_handler(CommandHandler("stop",        cmd_stop))

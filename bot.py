@@ -68,10 +68,14 @@ def is_weekend() -> bool:
 
 
 def in_session() -> bool:
+    from database import get_config_param
     now = now_utc()
-    if config.WEEKEND_FILTER and is_weekend():
+    weekend_filter = get_config_param("weekend_filter")
+    if weekend_filter is None:
+        weekend_filter = str(config.WEEKEND_FILTER).lower()
+    if weekend_filter == "true" and is_weekend():
         return False
-    return config.SESSION_START_HOUR <= now.hour < config.SESSION_END_HOUR
+    return config.SESSION_START_HOUR <= now.hour < config.SESSION_END_HOURS
 
 
 def is_force_close_time() -> bool:
