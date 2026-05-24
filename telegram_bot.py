@@ -654,6 +654,56 @@ async def cmd_reset_cooldown_callback(update: Update, ctx: ContextTypes.DEFAULT_
     clear_decay_cooldown(symbol_match)
     await query.edit_message_text(f"✅ Cooldown resettato per {symbol_match}.")
 
+async def cmd_stats_atr(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/statsatr — Statistiche winrate per fasce ATR% per asset."""
+    from database import get_stats_by_atr
+    stats = get_stats_by_atr()
+
+    if not stats:
+        await update.message.reply_text("Nessun dato disponibile ancora.")
+        return
+
+    lines = ["📊 *Statistiche ATR%*\n"]
+
+    for symbol, fasce in stats.items():
+        has_data = any(f["total"] > 0 for f in fasce)
+        if not has_data:
+            continue
+
+        best_winrate = -1
+        best_idx = -1
+        for i, f in enumerate(fasce):
+            if f["total"] > 0:
+                wr = f["wins"] / f["total"] * 100
+                if wr > best_winrate:
+                    best_winrate = wr
+                    best_idx = i
+
+        lines.append(f"*{symbol}*")
+        for i, f in enumerate(fasce):
+            total = f["total"]
+            if total == 0:
+                continue
+            wins = f["wins"]
+            winrate = round(wins / total * 100, 1)
+            star = " ⭐" if i == best_idx else ""
+            if winrate >= 70:
+                emoji = "🟢"
+            elif winrate >= 40:
+                emoji = "🟡"
+            else:
+                emoji = "🔴"
+            lines.append(
+                f"{f['min']}%-{f['max']}% | Trade: {total} | Win: {wins} | {winrate}% | {emoji}{star}"
+            )
+        lines.append("")
+
+    if len(lines) == 1:
+        await update.message.reply_text("Nessun dato disponibile ancora.")
+        return
+
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)    
+
 async def cmd_stats_filtri(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/statsfiltri — Statistiche filtri scansione per asset."""
     from database import get_filter_stats
@@ -952,7 +1002,8 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "/statsasset — Statistiche winrate per asset\n"
         "/statsdirection — Statistiche winrate per direzione\n"
         "/statshour — Statistiche winrate per ora\n"
-        "/statsfiltri — Statistiche filtri scansione\n\n"
+        "/statsfiltri — Statistiche filtri scansione\n"
+        "/statsatr — Statistiche winrate per fasce ATR%\n\n"
         "⚙️ *Parametri*\n"
         "/parametri — Parametri correnti\n"
         "/setmaxloss — Modifica il daily max loss\n"
@@ -1000,6 +1051,7 @@ def start_telegram_bot(shutdown_event: "threading.Event | None" = None) -> None:
     app.add_handler(CommandHandler("statsdirection", cmd_stats_direction))
     app.add_handler(CommandHandler("statshour", cmd_stats_hour))
     app.add_handler(CommandHandler("statsfiltri", cmd_stats_filtri))
+    app.add_handler(CommandHandler("statsatr", cmd_stats_atr))
     app.add_handler(CommandHandler("cooldown", cmd_cooldown))
     app.add_handler(CommandHandler("resetcooldown", cmd_reset_cooldown))
     app.add_handler(CallbackQueryHandler(cmd_reset_cooldown_callback, pattern="^reset_"))
