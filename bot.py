@@ -208,8 +208,8 @@ def scan_symbol(exchange, symbol: str) -> None:
         atr_val = float(df_15.iloc[-2]["atr"])
 
         # Filtro ATR% — verifica volatilità min/max
-        atr_class = classify_atr(symbol, atr_val, entry)
-        atr_pct = atr_val / entry * 100
+        atr_pct = float(df_15.iloc[-2]["atr_pct"])
+        atr_class = classify_atr(symbol, atr_pct)
         logger.info(f"{symbol} — ATR%: {atr_pct:.3f}% — {atr_class}")
         if atr_class == "NO_TRADE_LOW_VOLATILITY":
             logger.info(f"{symbol} — ATR troppo basso, skip")
@@ -494,6 +494,18 @@ def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float, atr: fl
 
         buf = config.PROXIMITY_ALERT_PCT / 100
 
+        from binance_api import classify_atr
+        atr_pct_raw = atr / price * 100
+        atr_class = classify_atr(symbol, atr_pct_raw)
+        atr_emoji = {
+            "IDEAL_VOLATILITY":    "🟢",
+            "VALID_BUT_NOT_IDEAL": "🟡",
+        }.get(atr_class)
+
+        if atr_emoji is None:
+            proximity_alerted[symbol] = None
+            return
+
         if 0 < dist_to_long < buf:
             if proximity_alerted.get(symbol) != "pdh":
                 proximity_alerted[symbol] = "pdh"
@@ -501,7 +513,8 @@ def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float, atr: fl
                     f"⚡ {symbol} si avvicina al Breakout LONG\n"
                     f"Live: {price:,.2f} — {now_str}\n"
                     f"Breakout da: {breakout_long:,.2f}\n"
-                    f"Manca: {round(dist_to_long * 100, 2)}%"
+                    f"Manca: {round(dist_to_long * 100, 2)}%\n"
+                    f"ATR%: {round(atr_pct_raw, 3)}% {atr_emoji}"
                 )
         elif 0 < dist_to_short < buf:
             if proximity_alerted.get(symbol) != "pdl":
@@ -510,7 +523,8 @@ def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float, atr: fl
                     f"⚡ {symbol} si avvicina al Breakout SHORT\n"
                     f"Live: {price:,.2f} — {now_str}\n"
                     f"Breakout da: {breakout_short:,.2f}\n"
-                    f"Manca: {round(dist_to_short * 100, 2)}%"
+                    f"Manca: {round(dist_to_short * 100, 2)}%\n"
+                    f"ATR%: {round(atr_pct_raw, 3)}% {atr_emoji}"
                 )
         elif dist_to_long > buf and dist_to_short > buf:
             proximity_alerted[symbol] = None
@@ -690,7 +704,7 @@ def run_bot() -> None:
                     logger.info(f"Scansione — {symbol} — {now_utc().strftime('%H:%M:%S')} UTC")
                     scan_symbol(exchange, symbol)
                     pdh, pdl = get_previous_day_hl(exchange, symbol)
-                    df_15_prox = fetch_ohlcv(exchange, symbol, config.TF_SIGNAL, limit=20)
+                    df_15_prox = fetch_ohlcv(exchange, symbol, config.TF_SIGNAL, limit=120)
                     df_15_prox = add_indicators(df_15_prox)
                     atr_prox = float(df_15_prox.iloc[-2]["atr"])
                     check_proximity_alert(exchange, symbol, pdh, pdl, atr_prox)
