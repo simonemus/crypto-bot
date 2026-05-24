@@ -335,17 +335,22 @@ async def cmd_stats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 best_pattern = s["pattern"]
 
     lines = ["📊 Statistiche per pattern\n"]
+    has_data = False
     for s in stats:
         total = s["total"]
+        if total == 0:
+            continue
+        has_data = True
         wins  = s["wins"]
-        winrate = round(wins / total * 100, 1) if total else 0
+        winrate = round(wins / total * 100, 1)
         star = " ⭐" if s["pattern"] == best_pattern else ""
-        wr_str = f"{winrate}%" if total > 0 else "N/D"
         lines.append(
             f"🕯 {s['pattern']}{star}\n"
             f"Trade: {total} | Win: {wins} | Loss: {s['losses']} | BE: {s['breakeven']}\n"
-            f"Win rate: {wr_str}\n"
+            f"Win rate: {winrate}%\n"
         )
+    if not has_data:
+        lines.append("Nessun dato disponibile ancora.")
 
     await update.message.reply_text("\n".join(lines))
 
