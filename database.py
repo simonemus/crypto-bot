@@ -734,7 +734,63 @@ def get_filter_stats(days: int = 30) -> list[dict]:
         ]
     except Exception as e:
         logger.error(f"DB get_filter_stats error: {e}")
-        return []         
+        return []   
+
+def get_stats_by_atr() -> dict:
+    """Restituisce statistiche winrate per fasce ATR% per asset."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT
+                symbol,
+                atr_pct,
+                exit_reason
+            FROM trades
+            WHERE status = 'closed'
+            AND atr_pct IS NOT NULL
+            ORDER BY symbol, atr_pct
+        """)
+        rows = cur.fetchall()
+        release_db(conn)
+
+        fasce = {
+            "BTC/USDT": [0.15, 0.25, 0.40, 0.55, 0.75],
+            "ETH/USDT": [0.20, 0.30, 0.50, 0.65, 0.90],
+            "SOL/USDT": [0.30, 0.45, 0.65, 0.90, 1.20],
+        }
+
+        wins_set = {"tp", "trailing_win", "force_close_win"}
+
+        result = {}
+        for symbol, bounds in fasce.items():
+            result[symbol] = []
+            for i in range(len(bounds) - 1):
+                result[symbol].append({
+                    "min": bounds[i],
+                    "max": bounds[i + 1],
+                    "total": 0,
+                    "wins": 0,
+                })
+
+        for row in rows:
+            symbol = row[0]
+            atr_pct = float(row[1])
+            exit_reason = row[2]
+            if symbol not in result:
+                continue
+            for fascia in result[symbol]:
+                if fascia["min"] <= atr_pct < fascia["max"]:
+                    fascia["total"] += 1
+                    if exit_reason in wins_set:
+                        fascia["wins"] += 1
+                    break
+
+        return result
+
+    except Exception as e:
+        logger.error(f"DB get_stats_by_atr error: {e}")
+        return {}              
 
 def reset_db() -> None:
     """Cancella tutti i dati da trades, equity, filter_stats, signals."""
@@ -764,4 +820,4 @@ def get_first_trade_date() -> str | None:
         return None
     except Exception as e:
         logger.error(f"DB get_first_trade_date error: {e}")
-        return None                                                      
+        return None                                                              
