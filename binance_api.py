@@ -129,10 +129,19 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df["ema_fast"] = df["close"].ewm(span=EMA_FAST, adjust=False).mean()
     df["ema_slow"] = df["close"].ewm(span=EMA_SLOW, adjust=False).mean()
 
-    # ATR (True Range → media mobile semplice)
+    # ATR Wilder/RMA — allineato a TradingView/Binance
     df["prev_close"] = df["close"].shift(1)
-    df["tr"] = df[["high", "prev_close"]].max(axis=1) - df[["low", "prev_close"]].min(axis=1)
-    df["atr"] = df["tr"].rolling(ATR_PERIOD).mean()
+    df["tr"] = pd.concat([
+        df["high"] - df["low"],
+        (df["high"] - df["prev_close"]).abs(),
+        (df["low"] - df["prev_close"]).abs()
+    ], axis=1).max(axis=1)
+    df["atr"] = df["tr"].ewm(
+        alpha=1 / ATR_PERIOD,
+        adjust=False,
+        min_periods=ATR_PERIOD
+    ).mean()
+    df["atr_pct"] = (df["atr"] / df["close"]) * 100
 
     return df
 
@@ -149,15 +158,20 @@ def trend_ok(df: pd.DataFrame, direction: str) -> bool:
         return last["ema_fast"] < last["ema_slow"]
 
 
-def classify_atr(symbol: str, atr: float, price: float) -> str:
+def classify_atr(symbol: str, atr_pct: float) -> str:
     """
     Classifica la volatilità ATR% rispetto ai filtri per asset.
+    Riceve direttamente atr_pct — non ricalcola.
     Legge i valori min/max dal DB, fallback a config.py.
     Restituisce: IDEAL_VOLATILITY, VALID_BUT_NOT_IDEAL,
-                 NO_TRADE_LOW_VOLATILITY, NO_TRADE_HIGH_VOLATILITY
+                 NO_TRADE_LOW_VOLATILITY, NO_TRADE_HIGH_VOLATILITY,
+                 ATR_NOT_READY, ATR_FILTER_NOT_FOUND
     """
-    atr_pct = atr / price * 100
-    f = ATR_FILTERS.get(symbol, {"min": 0.15, "ideal_min": 0.25, "ideal_max": 0.55, "max": 0.75})
+    if atr_pct is None or pd.isna(atr_pct):
+        return "ATR_NOT_READY"
+    f = ATR_FILTERS.get(symbol)
+    if not f:
+        return "ATR_FILTER_NOT_FOUND"
     atr_min = _get_param(f"atr_min_{symbol}", f["min"])
     atr_max = _get_param(f"atr_max_{symbol}", f["max"])
     ideal_min = f["ideal_min"]

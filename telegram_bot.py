@@ -156,9 +156,9 @@ async def cmd_trade(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             pnl_sign = "+" if pnl_pct >= 0 else ""
             from binance_api import classify_atr
             atr_val = t.get("atr", 0)
-            atr_pct_trade = round(atr_val / t["entry"] * 100, 3) if atr_val else None
-            if atr_pct_trade:
-                atr_class = classify_atr(sym, atr_val, t["entry"])
+            atr_pct_trade = round((atr_val / t["entry"]) * 100, 3) if atr_val is not None else None
+            if atr_pct_trade is not None:
+                atr_class = classify_atr(sym, atr_pct_trade)
                 atr_emoji = {
                     "IDEAL_VOLATILITY":        "🟢",
                     "VALID_BUT_NOT_IDEAL":     "🟡",
@@ -565,9 +565,10 @@ async def cmd_livelli(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             else:
                 pdl_str = f"`{pdl:.2f}` Breakout: {breakout_short:.2f} | {dist_to_breakout_short}%"
 
-            atr_pct_val = round(atr / price * 100, 3)
             from binance_api import classify_atr
-            atr_class = classify_atr(symbol, atr, price)
+            atr_pct_raw = float(last["atr_pct"])
+            atr_pct_val = round(atr_pct_raw, 3)
+            atr_class = classify_atr(symbol, atr_pct_raw)
             atr_emoji = {
                 "IDEAL_VOLATILITY":        "🟢",
                 "VALID_BUT_NOT_IDEAL":     "🟡",
