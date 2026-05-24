@@ -442,8 +442,9 @@ def calc_quantity(exchange, symbol: str, entry: float) -> float:
     Quantità = RISK_USDT / (entry * SL_PCT)
     Cap: margine massimo 500 USDT con leva 2x → posizione max 1000 USDT
     """
-    # Quantità = rischio / (entry * SL%)
-    qty = RISK_USDT / (entry * SL_PCT)
+    # Quantità = rischio / (entry * SL%) — legge sl_pct dal DB
+    sl_pct = _get_param("sl_pct", SL_PCT * 100) / 100
+    qty = RISK_USDT / (entry * sl_pct)
 
     # Cap margine — posizione max 1000 USDT
     position_value = qty * entry
