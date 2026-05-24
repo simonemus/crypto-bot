@@ -638,6 +638,8 @@ def run_bot() -> None:
 
     exchange = get_exchange_with_retry()
     set_leverage_all(exchange, config.SYMBOLS, leverage=2)
+    algo_methods = [m for m in dir(exchange) if "algo" in m.lower()]
+    logger.info(f"CCXT Algo methods: {algo_methods}")
     report_sent_today = False
     force_closed_today = False
     last_pnl_notify = None
