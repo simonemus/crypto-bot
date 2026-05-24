@@ -536,7 +536,7 @@ async def cmd_livelli(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             pdh, pdl = get_previous_day_hl(exchange, symbol)
             range_pct = round((pdh - pdl) / pdl * 100, 2)
 
-            df_15 = fetch_ohlcv(exchange, symbol, "15m", limit=20)
+            df_15 = fetch_ohlcv(exchange, symbol, "15m", limit=120)
             df_15 = add_indicators(df_15)
             last = df_15.iloc[-2]
             atr = float(last["atr"])
