@@ -285,7 +285,7 @@ def scan_symbol(exchange, symbol: str) -> None:
         # Calcola e salva il buffer dinamico usato al momento del breakout
         atr_pct_buf = atr_val / entry
         buf_used = round(max(0.0020, atr_pct_buf * 1.5) * 100, 4)
-        log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=atr_val, breakout_buffer=buf_used)
+        log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=atr_val, breakout_buffer=buf_used, atr_pct=atr_pct)
         increment_filter_stat(symbol, "trade_aperti")
         send_message(
             f"📈 Ordine aperto — {symbol}\n"
