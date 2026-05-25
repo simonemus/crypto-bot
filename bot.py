@@ -278,6 +278,8 @@ def scan_symbol(exchange, symbol: str) -> None:
             "pattern":          pattern,
             "activation_price": activation_price,
             "trailing_placed":  False,
+            "opened_at_dt":     now_utc(),
+            "soft_check_done":  False,
         }
         del breakout_seen[symbol]
         clear_breakout(symbol)
@@ -353,10 +355,49 @@ def monitor_open_trades(exchange) -> None:
                 elif price <= trade["tp"]:
                     hit = "tp"
 
-            # Dopo 5 minuti dall'apertura controlla se Binance ha chiuso la posizione
+            # ── DURATA MASSIMA TRADE ─────────────────────────────
+            if hit is None and not trade.get("trailing_placed", False):
+                trade_age_min = (now_utc() - trade["opened_at_dt"]).total_seconds() / 60
+
+                soft_check_min = float(
+                    get_config_param("trade_soft_check_minutes") or config.TRADE_SOFT_CHECK_MINUTES
+                )
+                hard_exit_min = float(
+                    get_config_param("trade_max_duration_minutes") or config.TRADE_MAX_DURATION_MINUTES
+                )
+                min_progress = float(
+                    get_config_param("trade_min_progress_pct") or config.TRADE_MIN_PROGRESS_PCT
+                )
+
+                # HARD EXIT — 4 ore
+                if trade_age_min >= hard_exit_min:
+                    hit = "time_exit_hard"
+                    logger.info(f"{symbol} — HARD EXIT: trade aperto da {trade_age_min:.0f} minuti")
+
+                # SOFT CHECK — esattamente a 2 ore, una sola volta
+                elif trade_age_min >= soft_check_min and not trade.get("soft_check_done", False):
+                    trade["soft_check_done"] = True
+                    pnl_live = ((price - trade["entry"]) / trade["entry"] * 100) * config.LEVERAGE
+                    if trade["direction"] == "short":
+                        pnl_live = -pnl_live
+                    if pnl_live < min_progress:
+                        hit = "time_exit_soft"
+                        logger.info(
+                            f"{symbol} — SOFT EXIT: dopo {trade_age_min:.0f} min "
+                            f"progresso {pnl_live:.2f}% < {min_progress}% richiesto"
+                        )
+                    else:
+                        logger.info(
+                            f"{symbol} — Soft check OK: +{pnl_live:.2f}% dopo {trade_age_min:.0f} min"
+                        )
+                        send_message(
+                            f"⏱ Soft check OK — {symbol}\n"
+                            f"Dopo {int(soft_check_min)} min: +{pnl_live:.2f}% ✅\n"
+                            f"Trade continua…"
+                        )
+
+            # Controlla se Binance ha chiuso la posizione (server-side SL/TP/trailing)
             if hit is None:
-                if "opened_at_dt" not in trade:
-                    trade["opened_at_dt"] = now_utc()
                 trade_age = (now_utc() - trade["opened_at_dt"]).total_seconds()
                 if trade_age > 300 and not has_open_position(exchange, symbol):
                     hit = "closed_by_binance"
@@ -388,6 +429,22 @@ def monitor_open_trades(exchange) -> None:
                 elif hit == "sl":
                     exit_reason = "sl"
                     msg = f"🔴 Stop Loss — {symbol}\nExit: {price:.4f} | PnL: {pnl_pct}%"
+                elif hit == "time_exit_soft":
+                    sign = "+" if pnl_pct >= 0 else ""
+                    exit_reason = "time_exit_soft"
+                    msg = (
+                        f"⏱ Soft Exit — {symbol}\n"
+                        f"Aperto da 2h senza progresso sufficiente\n"
+                        f"Exit: {price:.4f} | PnL: {sign}{pnl_pct}%"
+                    )
+                elif hit == "time_exit_hard":
+                    sign = "+" if pnl_pct >= 0 else ""
+                    exit_reason = "time_exit_hard"
+                    msg = (
+                        f"⏰ Hard Exit — {symbol}\n"
+                        f"Durata massima raggiunta (4 ore)\n"
+                        f"Exit: {price:.4f} | PnL: {sign}{pnl_pct}%"
+                    )    
                 elif hit == "closed_by_binance":
                     if trade.get("trailing_placed", False):
                         if pnl_pct > 0:
@@ -654,7 +711,19 @@ def run_bot() -> None:
                     activation_price = round(t["entry"] - sl_dist, 2)
                 t["activation_price"] = activation_price
                 t["trailing_placed"] = False
-                t["opened_at_dt"] = now_utc()
+                # Usa opened_at reale dal DB per i timer durata trade
+                opened_at_real = t.get("opened_at")
+                if opened_at_real is not None:
+                    if opened_at_real.tzinfo is None:
+                        opened_at_real = opened_at_real.replace(tzinfo=timezone.utc)
+                    t["opened_at_dt"] = opened_at_real
+                else:
+                    t["opened_at_dt"] = now_utc()
+                # Se già oltre 2h al restart → soft check non va rieseguito
+                age_at_restart = (now_utc() - t["opened_at_dt"]).total_seconds() / 60
+                t["soft_check_done"] = age_at_restart >= float(
+                    get_config_param("trade_soft_check_minutes") or config.TRADE_SOFT_CHECK_MINUTES
+                )
                 open_trades[symbol] = t
                 logger.info(f"Trade recuperato dal DB: {symbol} {t['direction']} entry={t['entry']}")
                 send_message(

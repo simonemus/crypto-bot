@@ -129,6 +129,15 @@ def init_db():
             INSERT INTO config (key, value, updated_at)
             VALUES ('atr_max_SOL/USDT', '1.20', now())
             ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('trade_max_duration_minutes', '240', now())
+            ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('trade_soft_check_minutes', '120', now())
+            ON CONFLICT (key) DO NOTHING;
+            INSERT INTO config (key, value, updated_at)
+            VALUES ('trade_min_progress_pct', '1.0', now())
+            ON CONFLICT (key) DO NOTHING;
 
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS atr numeric;
             ALTER TABLE trades ADD COLUMN IF NOT EXISTS breakout_buffer numeric;
@@ -373,7 +382,7 @@ def get_open_trades() -> list[dict]:
         conn = get_db()
         cur = conn.cursor()
         cur.execute(
-            "SELECT symbol, direction, entry, sl, tp, qty, pattern, atr FROM trades WHERE status='open'"
+            "SELECT symbol, direction, entry, sl, tp, qty, pattern, atr, opened_at FROM trades WHERE status='open'"
         )
         rows = cur.fetchall()
         release_db(conn)
@@ -387,6 +396,7 @@ def get_open_trades() -> list[dict]:
                 "qty":       float(r[5]),
                 "pattern":   r[6],
                 "atr":       float(r[7]) if r[7] else 0.0,
+                "opened_at": r[8],
             }
             for r in rows
         ]

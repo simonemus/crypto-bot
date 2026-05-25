@@ -69,6 +69,11 @@ MAX_TRADES_PER_DAY_PER_ASSET = 1
 LEVERAGE = 2
 DAILY_MAX_LOSS_PCT = 2.0      # % massima perdita giornaliera prima del blocco
 
+# ── DURATA MASSIMA TRADE ─────────────────────────────────────
+TRADE_MAX_DURATION_MINUTES = 240   # Hard exit: chiude dopo 4 ore se trailing non attivo
+TRADE_SOFT_CHECK_MINUTES   = 120   # Soft check: a 2 ore se pnl < MIN_PROGRESS chiude
+TRADE_MIN_PROGRESS_PCT     = 1.0   # Progresso minimo % (con leva) al soft check
+
 # ── TIMEFRAME ────────────────────────────────────────────────
 TF_SIGNAL   = "15m"   # timeframe per rilevare breakout + trend
 TF_ENTRY    = "5m"    # timeframe per il retest e i pattern candele

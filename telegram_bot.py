@@ -200,6 +200,8 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "breakeven":       "⚖️",
             "force_close_win": "⚠️",
             "force_close_loss":"⚠️",
+            "time_exit_soft":  "⏱",
+            "time_exit_hard":  "⏰",
         }.get(reason, "•")
         lines.append(
             f"{emoji} {t['symbol']} {t.get('direction','').upper()} — {reason.replace('_', ' ')}"
@@ -218,6 +220,8 @@ def _format_report(trades, titolo, show_equity=False):
     breakeven     = len([t for t in trades if t.get("exit_reason") == "breakeven"])
     fc_win        = len([t for t in trades if t.get("exit_reason") == "force_close_win"])
     fc_loss       = len([t for t in trades if t.get("exit_reason") == "force_close_loss"])
+    time_soft     = len([t for t in trades if t.get("exit_reason") == "time_exit_soft"])
+    time_hard     = len([t for t in trades if t.get("exit_reason") == "time_exit_hard"])
     total         = len(trades)
 
     wins    = tp + trailing_win + fc_win
@@ -235,6 +239,7 @@ def _format_report(trades, titolo, show_equity=False):
         f"📈 Trailing Win: {trailing_win} | 📉 Trailing Loss: {trailing_loss}",
         f"⚖️ Breakeven: {breakeven}",
         f"⚠️ Force Win: {fc_win} | Force Loss: {fc_loss}",
+        f"⏱ Time Soft: {time_soft} | ⏰ Time Hard: {time_hard}",
         f"Win rate: {winrate}%",
         f"PnL medio: {sign_medio}{pnl_medio}%",
         f"PnL totale: {sign_total}{pnl_total}%",
@@ -513,7 +518,10 @@ async def cmd_parametri(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"ATR SOL: `{get_config_param('atr_min_SOL/USDT') or '0.30'}% — {get_config_param('atr_max_SOL/USDT') or '1.20'}%`\n"
         f"Sessione: `{config.SESSION_START_HOUR}:00–{config.SESSION_END_HOUR}:00 UTC`\n"
         f"Weekend filter: `{'ON' if (get_config_param('weekend_filter') or str(config.WEEKEND_FILTER).lower()) == 'true' else 'OFF'}`\n"
-        f"Testnet: `{'SI' if config.TESTNET else 'NO'}`"
+        f"Testnet: `{'SI' if config.TESTNET else 'NO'}`\n"
+        f"Durata max trade: `{get_config_param('trade_max_duration_minutes') or config.TRADE_MAX_DURATION_MINUTES} min`\n"
+        f"Soft check a: `{get_config_param('trade_soft_check_minutes') or config.TRADE_SOFT_CHECK_MINUTES} min`\n"
+        f"Progresso min (soft): `{get_config_param('trade_min_progress_pct') or config.TRADE_MIN_PROGRESS_PCT}%`"
     )
     await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
 
@@ -952,7 +960,70 @@ async def cmd_set_atr_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -
     await query.edit_message_text(
         f"✅ ATR {min_or_max} {symbol} aggiornato a `{val}%`",
         parse_mode=ParseMode.MARKDOWN
-    )      
+    )
+
+async def cmd_set_trade_duration(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/settradeduration — Imposta durata max trade e soft check."""
+    hard = get_config_param("trade_max_duration_minutes") or config.TRADE_MAX_DURATION_MINUTES
+    soft = get_config_param("trade_soft_check_minutes") or config.TRADE_SOFT_CHECK_MINUTES
+    prog = get_config_param("trade_min_progress_pct") or config.TRADE_MIN_PROGRESS_PCT
+
+    keyboard = [
+        [
+            InlineKeyboardButton("Hard 2h", callback_data="settd_hard_120"),
+            InlineKeyboardButton("Hard 3h", callback_data="settd_hard_180"),
+            InlineKeyboardButton("Hard 4h", callback_data="settd_hard_240"),
+            InlineKeyboardButton("Hard 6h", callback_data="settd_hard_360"),
+        ],
+        [
+            InlineKeyboardButton("Soft 1h", callback_data="settd_soft_60"),
+            InlineKeyboardButton("Soft 90m", callback_data="settd_soft_90"),
+            InlineKeyboardButton("Soft 2h", callback_data="settd_soft_120"),
+            InlineKeyboardButton("Soft 3h", callback_data="settd_soft_180"),
+        ],
+        [
+            InlineKeyboardButton("Min +0.5%", callback_data="settd_prog_0.5"),
+            InlineKeyboardButton("Min +1.0%", callback_data="settd_prog_1.0"),
+            InlineKeyboardButton("Min +1.5%", callback_data="settd_prog_1.5"),
+            InlineKeyboardButton("Min +2.0%", callback_data="settd_prog_2.0"),
+        ],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        f"⏱ *Durata trade attuale:*\n"
+        f"Hard exit: `{hard} min`\n"
+        f"Soft check: `{soft} min`\n"
+        f"Progresso min: `{prog}%`\n\n"
+        f"Seleziona il parametro da modificare:",
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+async def cmd_set_trade_duration_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    parts = query.data.replace("settd_", "").split("_", 1)
+    param_type = parts[0]
+    val = parts[1]
+
+    if param_type == "hard":
+        set_config_param("trade_max_duration_minutes", val)
+        await query.edit_message_text(
+            f"✅ Hard exit aggiornato a `{val} min` ({int(val)//60}h)",
+            parse_mode=ParseMode.MARKDOWN
+        )
+    elif param_type == "soft":
+        set_config_param("trade_soft_check_minutes", val)
+        await query.edit_message_text(
+            f"✅ Soft check aggiornato a `{val} min`",
+            parse_mode=ParseMode.MARKDOWN
+        )
+    elif param_type == "prog":
+        set_config_param("trade_min_progress_pct", val)
+        await query.edit_message_text(
+            f"✅ Progresso minimo aggiornato a `{val}%`",
+            parse_mode=ParseMode.MARKDOWN
+        )          
 
 async def cmd_reset_db(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/resetdb — Resetta tutti i dati del DB con conferma."""
@@ -1012,7 +1083,8 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "/settp — Modifica Take Profit%\n"
         "/setcallback — Modifica callback trailing per asset\n"
         "/settrailing — Modifica activation trailing%\n"
-        "/setatr — Modifica ATR min/max per asset\n\n"
+        "/setatr — Modifica ATR min/max per asset\n"
+        "/settradeduration — Durata max trade / soft check\n\n"
         "🔧 *Altro*\n"
         "/test — Notifica di prova\n"
         "/resetdb — Resetta tutti i dati del DB\n"
@@ -1057,6 +1129,8 @@ def start_telegram_bot(shutdown_event: "threading.Event | None" = None) -> None:
     app.add_handler(CallbackQueryHandler(cmd_reset_cooldown_callback, pattern="^reset_"))
     app.add_handler(CommandHandler("setmaxloss", cmd_set_maxloss))
     app.add_handler(CallbackQueryHandler(cmd_set_maxloss_callback, pattern="^setmaxloss_"))
+    app.add_handler(CommandHandler("settradeduration", cmd_set_trade_duration))
+    app.add_handler(CallbackQueryHandler(cmd_set_trade_duration_callback, pattern="^settd_"))
     app.add_handler(CommandHandler("resetdb", cmd_reset_db))
     app.add_handler(CallbackQueryHandler(cmd_reset_db_callback, pattern="^resetdb_"))
     app.add_handler(CommandHandler("setweekend", cmd_set_weekend))
