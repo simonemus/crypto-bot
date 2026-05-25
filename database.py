@@ -747,8 +747,9 @@ def get_filter_stats(days: int = 30) -> list[dict]:
         return []   
 
 def get_stats_by_atr() -> dict:
-    """Restituisce statistiche winrate per fasce ATR% per asset."""
+    """Restituisce statistiche winrate per fasce ATR% per asset — fasce dinamiche dal DB."""
     try:
+        from config import ATR_FILTERS
         conn = get_db()
         cur = conn.cursor()
         cur.execute("""
@@ -764,16 +765,14 @@ def get_stats_by_atr() -> dict:
         rows = cur.fetchall()
         release_db(conn)
 
-        fasce = {
-            "BTC/USDT": [0.15, 0.25, 0.40, 0.55, 0.75],
-            "ETH/USDT": [0.20, 0.30, 0.50, 0.65, 0.90],
-            "SOL/USDT": [0.30, 0.45, 0.65, 0.90, 1.20],
-        }
-
         wins_set = {"tp", "trailing_win", "force_close_win"}
 
         result = {}
-        for symbol, bounds in fasce.items():
+        for symbol in ATR_FILTERS.keys():
+            atr_min = float(get_config_param(f"atr_min_{symbol}") or ATR_FILTERS[symbol]["min"])
+            atr_max = float(get_config_param(f"atr_max_{symbol}") or ATR_FILTERS[symbol]["max"])
+            step = (atr_max - atr_min) / 4
+            bounds = [round(atr_min + step * i, 4) for i in range(5)]
             result[symbol] = []
             for i in range(len(bounds) - 1):
                 result[symbol].append({
@@ -789,12 +788,22 @@ def get_stats_by_atr() -> dict:
             exit_reason = row[2]
             if symbol not in result:
                 continue
-            for fascia in result[symbol]:
-                if fascia["min"] <= atr_pct < fascia["max"]:
-                    fascia["total"] += 1
-                    if exit_reason in wins_set:
-                        fascia["wins"] += 1
-                    break
+            fasce = result[symbol]
+            for i, fascia in enumerate(fasce):
+                is_last = i == len(fasce) - 1
+                if is_last:
+                    # Ultima fascia: includi anche il valore esatto del max
+                    if fascia["min"] <= atr_pct <= fascia["max"]:
+                        fascia["total"] += 1
+                        if exit_reason in wins_set:
+                            fascia["wins"] += 1
+                        break
+                else:
+                    if fascia["min"] <= atr_pct < fascia["max"]:
+                        fascia["total"] += 1
+                        if exit_reason in wins_set:
+                            fascia["wins"] += 1
+                        break
 
         return result
 
