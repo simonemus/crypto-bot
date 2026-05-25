@@ -476,6 +476,8 @@ def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float, atr: fl
     from datetime import datetime, timezone, timedelta
 
     try:
+        if symbol in breakout_seen:
+            return
         price = get_ticker_price(exchange, symbol)
         now_it = datetime.now(timezone.utc) + timedelta(hours=2)
         now_str = now_it.strftime("%d/%m/%Y %H:%M")
