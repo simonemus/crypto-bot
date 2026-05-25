@@ -66,6 +66,7 @@ ATR_FILTERS = {
    
 # ── LIMITI OPERATIVI ─────────────────────────────────────────
 MAX_TRADES_PER_DAY_PER_ASSET = 1
+LEVERAGE = 2
 DAILY_MAX_LOSS_PCT = 2.0      # % massima perdita giornaliera prima del blocco
 
 # ── TIMEFRAME ────────────────────────────────────────────────

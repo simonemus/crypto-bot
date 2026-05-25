@@ -287,13 +287,15 @@ def scan_symbol(exchange, symbol: str) -> None:
         buf_used = round(max(0.0020, atr_pct_buf * 1.5) * 100, 4)
         log_trade_open(symbol, direction, entry, sl, tp, qty, pattern, atr=atr_val, breakout_buffer=buf_used, atr_pct=atr_pct)
         increment_filter_stat(symbol, "trade_aperti")
+        global last_pnl_notify
+        last_pnl_notify = now_utc()
         send_message(
             f"📈 Ordine aperto — {symbol}\n"
             f"Direzione: {direction.upper()}\n"
             f"Entry: {entry:.4f} | SL: {sl:.4f} | TP: {tp:.4f}\n"
             f"Qty: {qty} | Pattern: {pattern.replace('_', ' ')}\n"
             f"SL: {config.SL_PCT*100:.1f}% | TP: {config.TP_PCT*100:.1f}% | "
-            f"Trailing da: {activation_price:.4f} | ATR: {atr_class}"
+            f"Trailing da: {activation_price:.4f} | ATR: {atr_class.replace('_', ' ')}"
         )
 
     except Exception as e:
@@ -374,7 +376,7 @@ def monitor_open_trades(exchange) -> None:
                 except Exception:
                     pass
 
-                pnl_pct = ((price - trade["entry"]) / trade["entry"] * 100)
+                pnl_pct = ((price - trade["entry"]) / trade["entry"] * 100) * config.LEVERAGE
                 if direction == "short":
                     pnl_pct = -pnl_pct
                 pnl_pct = round(pnl_pct, 2)
@@ -437,7 +439,7 @@ def force_close_all(exchange) -> None:
             price = get_ticker_price(exchange, symbol)
             close_position_market(exchange, symbol, trade["direction"], trade["qty"])
 
-            pnl_pct = (price - trade["entry"]) / trade["entry"] * 100
+            pnl_pct = ((price - trade["entry"]) / trade["entry"] * 100) * config.LEVERAGE
             if trade["direction"] == "short":
                 pnl_pct = -pnl_pct
             pnl_pct = round(pnl_pct, 2)
@@ -542,7 +544,7 @@ def send_pnl_update(exchange) -> None:
         lines = ["📊 *Aggiornamento PnL*\n"]
         for symbol, trade in open_trades.items():
             price = get_ticker_price(exchange, symbol)
-            pnl_pct = (price - trade["entry"]) / trade["entry"] * 100
+            pnl_pct = ((price - trade["entry"]) / trade["entry"] * 100) * config.LEVERAGE
             if trade["direction"] == "short":
                 pnl_pct = -pnl_pct
             pnl_pct = round(pnl_pct, 2)
@@ -626,7 +628,8 @@ def run_bot() -> None:
                 else:
                     activation_price = round(t["entry"] - sl_dist, 2)
                 t["activation_price"] = activation_price
-                t["trailing_placed"] = False  # al restart ripiazza il trailing se serve
+                t["trailing_placed"] = False
+                t["opened_at_dt"] = now_utc()
                 open_trades[symbol] = t
                 logger.info(f"Trade recuperato dal DB: {symbol} {t['direction']} entry={t['entry']}")
                 send_message(

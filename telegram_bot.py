@@ -150,7 +150,7 @@ async def cmd_trade(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     for sym, t in open_trades.items():
         try:
             price = get_ticker_price(exchange, sym)
-            pnl_pct = (price - t["entry"]) / t["entry"] * 100
+            pnl_pct = ((price - t["entry"]) / t["entry"] * 100) * config.LEVERAGE
             if t["direction"] == "short":
                 pnl_pct = -pnl_pct
             pnl_sign = "+" if pnl_pct >= 0 else ""
