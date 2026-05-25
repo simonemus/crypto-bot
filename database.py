@@ -768,6 +768,9 @@ def get_stats_by_atr() -> dict:
         wins_set = {"tp", "trailing_win", "force_close_win"}
 
         result = {}
+        logger.info(f"get_stats_by_atr — rows dal DB: {len(rows)}")
+        for r in rows:
+            logger.info(f"  row: symbol={r[0]} atr_pct={r[1]} exit_reason={r[2]}")
         for symbol in ATR_FILTERS.keys():
             atr_min = float(get_config_param(f"atr_min_{symbol}") or ATR_FILTERS[symbol]["min"])
             atr_max = float(get_config_param(f"atr_max_{symbol}") or ATR_FILTERS[symbol]["max"])
