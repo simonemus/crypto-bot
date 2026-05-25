@@ -55,7 +55,7 @@ open_trades   = {}   # {symbol: {direction, entry, sl, tp, qty, order_id}}
 breakout_seen = {}   # {symbol: direction}  — breakout confermato, attesa retest
 last_pattern_candle = {}   # {symbol: timestamp}  — evita di controllare la stessa candela 5m due volte
 decay_cooldown = {}       # {symbol: timestamp} — cooldown dopo decadimento segnale
-proximity_alerted = {}    # {symbol: 'pdh'|'pdl'|None} — evita notifiche ripetute
+proximity_alerted = {}    # {symbol: {"pdh": ultima_soglia_notificata, "pdl": ultima_soglia_notificata}}
 daily_loss_blocked = False  # True se daily max loss raggiunto
 
 # ── UTILITÀ ORARIO ────────────────────────────────────────────
@@ -470,9 +470,14 @@ def force_close_all(exchange) -> None:
             clear_breakout(symbol)
 
 
+PROXIMITY_SOGLIE = [0.50, 0.40, 0.30, 0.20, 0.10]
+
 def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float, atr: float = 0) -> None:
     """
-    Controlla se il prezzo si avvicina al livello di breakout entro la soglia configurata.
+    Controlla se il prezzo si avvicina al livello di breakout.
+    Notifiche progressive: 0.50%, 0.40%, 0.30%, 0.20%, 0.10%
+    Ogni soglia viene notificata una sola volta.
+    Si resetta solo se il prezzo risale sopra quella soglia.
     """
     global proximity_alerted
     from datetime import datetime, timezone, timedelta
@@ -480,23 +485,22 @@ def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float, atr: fl
     try:
         if symbol in breakout_seen:
             return
+
+        if symbol not in proximity_alerted:
+            proximity_alerted[symbol] = {"pdh": None, "pdl": None}
+
         price = get_ticker_price(exchange, symbol)
         now_it = datetime.now(timezone.utc) + timedelta(hours=2)
         now_str = now_it.strftime("%d/%m/%Y %H:%M")
 
-        # Calcola buffer dinamico ATR
         atr_pct = atr / price if atr > 0 else 0
         buffer_pct = max(0.0020, atr_pct * 1.5)
 
-        # Livelli di breakout
         breakout_long = pdh * (1 + buffer_pct)
         breakout_short = pdl * (1 - buffer_pct)
 
-        # Distanza dal prezzo live al livello di breakout
         dist_to_long = (breakout_long - price) / price
         dist_to_short = (price - breakout_short) / price
-
-        buf = config.PROXIMITY_ALERT_PCT / 100
 
         from binance_api import classify_atr
         atr_pct_raw = atr / price * 100
@@ -507,31 +511,52 @@ def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float, atr: fl
         }.get(atr_class)
 
         if atr_emoji is None:
-            proximity_alerted[symbol] = None
+            proximity_alerted[symbol] = {"pdh": None, "pdl": None}
             return
 
-        if 0 < dist_to_long < buf:
-            if proximity_alerted.get(symbol) != "pdh":
-                proximity_alerted[symbol] = "pdh"
-                send_message(
-                    f"⚡ {symbol} si avvicina al Breakout LONG\n"
-                    f"Live: {price:,.2f} — {now_str}\n"
-                    f"Breakout da: {breakout_long:,.2f}\n"
-                    f"Manca: {round(dist_to_long * 100, 2)}%\n"
-                    f"ATR%: {round(atr_pct_raw, 3)}% {atr_emoji}"
-                )
-        elif 0 < dist_to_short < buf:
-            if proximity_alerted.get(symbol) != "pdl":
-                proximity_alerted[symbol] = "pdl"
-                send_message(
-                    f"⚡ {symbol} si avvicina al Breakout SHORT\n"
-                    f"Live: {price:,.2f} — {now_str}\n"
-                    f"Breakout da: {breakout_short:,.2f}\n"
-                    f"Manca: {round(dist_to_short * 100, 2)}%\n"
-                    f"ATR%: {round(atr_pct_raw, 3)}% {atr_emoji}"
-                )
-        elif dist_to_long > buf and dist_to_short > buf:
-            proximity_alerted[symbol] = None
+        # --- Breakout LONG ---
+        if 0 < dist_to_long:
+            for soglia in PROXIMITY_SOGLIE:
+                soglia_dec = soglia / 100
+                if dist_to_long < soglia_dec:
+                    last = proximity_alerted[symbol]["pdh"]
+                    if last is None or soglia < last:
+                        proximity_alerted[symbol]["pdh"] = soglia
+                        send_message(
+                            f"⚡ {symbol} si avvicina al Breakout LONG\n"
+                            f"Live: {price:,.2f} — {now_str}\n"
+                            f"Breakout da: {breakout_long:,.2f}\n"
+                            f"Manca: {round(dist_to_long * 100, 2)}%\n"
+                            f"ATR%: {round(atr_pct_raw, 3)}% {atr_emoji}"
+                        )
+                    break
+                else:
+                    if proximity_alerted[symbol]["pdh"] == soglia:
+                        proximity_alerted[symbol]["pdh"] = None
+        else:
+            proximity_alerted[symbol]["pdh"] = None
+
+        # --- Breakout SHORT ---
+        if 0 < dist_to_short:
+            for soglia in PROXIMITY_SOGLIE:
+                soglia_dec = soglia / 100
+                if dist_to_short < soglia_dec:
+                    last = proximity_alerted[symbol]["pdl"]
+                    if last is None or soglia < last:
+                        proximity_alerted[symbol]["pdl"] = soglia
+                        send_message(
+                            f"⚡ {symbol} si avvicina al Breakout SHORT\n"
+                            f"Live: {price:,.2f} — {now_str}\n"
+                            f"Breakout da: {breakout_short:,.2f}\n"
+                            f"Manca: {round(dist_to_short * 100, 2)}%\n"
+                            f"ATR%: {round(atr_pct_raw, 3)}% {atr_emoji}"
+                        )
+                    break
+                else:
+                    if proximity_alerted[symbol]["pdl"] == soglia:
+                        proximity_alerted[symbol]["pdl"] = None
+        else:
+            proximity_alerted[symbol]["pdl"] = None
 
     except Exception as e:
         logger.error(f"Errore check_proximity_alert {symbol}: {e}")                    
