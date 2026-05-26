@@ -771,11 +771,22 @@ def get_stats_by_atr() -> dict:
         logger.info(f"get_stats_by_atr — rows dal DB: {len(rows)}")
         for r in rows:
             logger.info(f"  row: symbol={r[0]} atr_pct={r[1]} exit_reason={r[2]}")
+        # Breakpoint fissi basati sui pulsanti /setatr
+        all_bounds = {
+            "BTC/USDT": [0.10, 0.15, 0.20, 0.50, 0.75, 1.00],
+            "ETH/USDT": [0.15, 0.20, 0.25, 0.70, 0.90, 1.10],
+            "SOL/USDT": [0.25, 0.30, 0.35, 1.00, 1.20, 1.50],
+        }
         for symbol in ATR_FILTERS.keys():
             atr_min = float(get_config_param(f"atr_min_{symbol}") or ATR_FILTERS[symbol]["min"])
             atr_max = float(get_config_param(f"atr_max_{symbol}") or ATR_FILTERS[symbol]["max"])
-            step = (atr_max - atr_min) / 4
-            bounds = [round(atr_min + step * i, 4) for i in range(5)]
+            # Filtra i breakpoint fissi tenendo solo quelli dentro min-max
+            bounds = [b for b in all_bounds[symbol] if atr_min <= b <= atr_max]
+            # Assicura che min e max siano sempre presenti
+            if not bounds or bounds[0] != atr_min:
+                bounds.insert(0, atr_min)
+            if bounds[-1] != atr_max:
+                bounds.append(atr_max)
             result[symbol] = []
             for i in range(len(bounds) - 1):
                 result[symbol].append({
