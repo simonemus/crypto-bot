@@ -297,7 +297,7 @@ def scan_symbol(exchange, symbol: str) -> None:
             f"Entry: {entry:.4f} | SL: {sl:.4f} | TP: {tp:.4f}\n"
             f"Qty: {qty} | Pattern: {pattern.replace('_', ' ')}\n"
             f"SL: {config.SL_PCT*100:.1f}% | TP: {config.TP_PCT*100:.1f}% | "
-            f"Trailing da: {activation_price:.4f} | ATR: {atr_class.replace('_', ' ')}"
+            f"Trailing da: {activation_price:.4f} | ATR: {atr_pct:.3f}% {atr_emoji}"
         )
 
     except Exception as e:
