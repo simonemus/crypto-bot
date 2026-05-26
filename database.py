@@ -815,7 +815,118 @@ def get_stats_by_atr() -> dict:
 
     except Exception as e:
         logger.error(f"DB get_stats_by_atr error: {e}")
-        return {}              
+        return {}  
+
+def get_max_drawdown() -> dict:
+    """Calcola il max drawdown dall'equity storica."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT date, balance FROM equity ORDER BY date ASC")
+        rows = cur.fetchall()
+        release_db(conn)
+
+        if len(rows) < 2:
+            return {"error": "Dati insufficienti"}
+
+        peak = float(rows[0][1])
+        peak_date = str(rows[0][0])
+        max_dd = 0.0
+        max_dd_peak = float(rows[0][1])
+        max_dd_peak_date = str(rows[0][0])
+        max_dd_trough = float(rows[0][1])
+        max_dd_trough_date = str(rows[0][0])
+        current_peak = float(rows[0][1])
+        current_peak_date = str(rows[0][0])
+
+        for row in rows[1:]:
+            balance = float(row[1])
+            date = str(row[0])
+
+            if balance > current_peak:
+                current_peak = balance
+                current_peak_date = date
+
+            dd = (balance - current_peak) / current_peak * 100
+
+            if dd < max_dd:
+                max_dd = dd
+                max_dd_peak = current_peak
+                max_dd_peak_date = current_peak_date
+                max_dd_trough = balance
+                max_dd_trough_date = date
+
+        return {
+            "max_drawdown_pct": round(max_dd, 2),
+            "peak_balance": round(max_dd_peak, 2),
+            "peak_date": max_dd_peak_date,
+            "trough_balance": round(max_dd_trough, 2),
+            "trough_date": max_dd_trough_date,
+        }
+    except Exception as e:
+        logger.error(f"DB get_max_drawdown error: {e}")
+        return {"error": str(e)}
+
+
+def get_streak_stats() -> dict:
+    """Calcola streak win/loss dai trade chiusi."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT exit_reason, pnl_pct
+            FROM trades
+            WHERE status = 'closed'
+            ORDER BY opened_at ASC
+        """)
+        rows = cur.fetchall()
+        release_db(conn)
+
+        if not rows:
+            return {"error": "Nessun trade disponibile"}
+
+        wins_set = {"tp", "trailing_win", "force_close_win"}
+        losses_set = {"sl", "trailing_loss", "force_close_loss"}
+        time_exits = {"time_exit_soft", "time_exit_hard"}
+
+        current_type = None
+        current_count = 0
+        max_win_streak = 0
+        max_loss_streak = 0
+
+        for row in rows:
+            exit_reason = row[0]
+            pnl_pct = float(row[1]) if row[1] else 0.0
+
+            # Classifica trade
+            if exit_reason in wins_set or (exit_reason in time_exits and pnl_pct > 0):
+                result = "win"
+            elif exit_reason in losses_set or (exit_reason in time_exits and pnl_pct < 0):
+                result = "loss"
+            else:
+                # Breakeven o pnl_pct == 0 — ignorato, non rompe la serie
+                continue
+
+            if result == current_type:
+                current_count += 1
+            else:
+                current_type = result
+                current_count = 1
+
+            if current_type == "win" and current_count > max_win_streak:
+                max_win_streak = current_count
+            elif current_type == "loss" and current_count > max_loss_streak:
+                max_loss_streak = current_count
+
+        return {
+            "current_type":    current_type,
+            "current_count":   current_count,
+            "max_win_streak":  max_win_streak,
+            "max_loss_streak": max_loss_streak,
+        }
+    except Exception as e:
+        logger.error(f"DB get_streak_stats error: {e}")
+        return {"error": str(e)}                    
 
 def reset_db() -> None:
     """Cancella tutti i dati da trades, equity, filter_stats, signals."""

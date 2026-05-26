@@ -16,7 +16,7 @@ import config
 from database import (
     get_config_param, set_config_param,
     get_today_trades, get_equity_history,
-    reset_db,
+    reset_db, get_max_drawdown, get_streak_stats,
 )
 
 logger = logging.getLogger(__name__)
@@ -1032,7 +1032,41 @@ async def cmd_set_trade_duration_callback(update: Update, ctx: ContextTypes.DEFA
         await query.edit_message_text(
             f"✅ Progresso minimo aggiornato a `{val}%`",
             parse_mode=ParseMode.MARKDOWN
-        )          
+        )   
+
+async def cmd_risk_stats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/riskstats — Max drawdown e streak win/loss."""
+    dd = get_max_drawdown()
+    streak = get_streak_stats()
+
+    lines = ["📉 *Risk Statistics*\n"]
+
+    # Max Drawdown
+    if "error" in dd:
+        lines.append(f"Max Drawdown: `{dd['error']}`")
+    else:
+        sign = "+" if dd["max_drawdown_pct"] >= 0 else ""
+        lines.append(f"Max Drawdown: `{sign}{dd['max_drawdown_pct']}%`")
+        lines.append(f"Picco: `{dd['peak_balance']} USDT` ({dd['peak_date']})")
+        lines.append(f"Minimo: `{dd['trough_balance']} USDT` ({dd['trough_date']})")
+
+    lines.append("")
+
+    # Streak
+    if "error" in streak:
+        lines.append(f"Streak: `{streak['error']}`")
+    else:
+        if streak["current_type"] == "win":
+            streak_emoji = "✅"
+        elif streak["current_type"] == "loss":
+            streak_emoji = "🔴"
+        else:
+            streak_emoji = "⚪"
+        lines.append(f"🔥 Streak attuale: {streak_emoji} {streak['current_type'].capitalize() if streak['current_type'] else 'N/D'} x{streak['current_count']}")
+        lines.append(f"Max Win Streak: `{streak['max_win_streak']}`")
+        lines.append(f"Max Loss Streak: `{streak['max_loss_streak']}`")
+
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)               
 
 async def cmd_reset_db(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/resetdb — Resetta tutti i dati del DB con conferma."""
@@ -1083,7 +1117,8 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "/statsdirection — Statistiche winrate per direzione\n"
         "/statshour — Statistiche winrate per ora\n"
         "/statsfiltri — Statistiche filtri scansione\n"
-        "/statsatr — Statistiche winrate per fasce ATR%\n\n"
+        "/statsatr — Statistiche winrate per fasce ATR%\n"
+        "/riskstats — Max drawdown e streak win/loss\n\n"
         "⚙️ *Parametri*\n"
         "/parametri — Parametri correnti\n"
         "/setmaxloss — Modifica il daily max loss\n"
@@ -1140,6 +1175,7 @@ def start_telegram_bot(shutdown_event: "threading.Event | None" = None) -> None:
     app.add_handler(CallbackQueryHandler(cmd_set_maxloss_callback, pattern="^setmaxloss_"))
     app.add_handler(CommandHandler("settradeduration", cmd_set_trade_duration))
     app.add_handler(CallbackQueryHandler(cmd_set_trade_duration_callback, pattern="^settd_"))
+    app.add_handler(CommandHandler("riskstats", cmd_risk_stats))
     app.add_handler(CommandHandler("resetdb", cmd_reset_db))
     app.add_handler(CallbackQueryHandler(cmd_reset_db_callback, pattern="^resetdb_"))
     app.add_handler(CommandHandler("setweekend", cmd_set_weekend))
