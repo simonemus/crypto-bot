@@ -775,15 +775,7 @@ def get_stats_by_atr() -> dict:
             "SOL/USDT": [0.25, 0.30, 0.35, 1.00, 1.20, 1.50],
         }
         for symbol in ATR_FILTERS.keys():
-            atr_min = float(get_config_param(f"atr_min_{symbol}") or ATR_FILTERS[symbol]["min"])
-            atr_max = float(get_config_param(f"atr_max_{symbol}") or ATR_FILTERS[symbol]["max"])
-            # Filtra i breakpoint fissi tenendo solo quelli dentro min-max
-            bounds = [b for b in all_bounds[symbol] if atr_min <= b <= atr_max]
-            # Assicura che min e max siano sempre presenti
-            if not bounds or bounds[0] != atr_min:
-                bounds.insert(0, atr_min)
-            if bounds[-1] != atr_max:
-                bounds.append(atr_max)
+            bounds = all_bounds[symbol]
             result[symbol] = []
             for i in range(len(bounds) - 1):
                 result[symbol].append({
