@@ -192,17 +192,21 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     lines  = [msg]
     for t in trades:
         reason = t.get("exit_reason") or t.get("result") or "aperto"
-        emoji  = {
-            "tp":              "✅",
-            "sl":              "🔴",
-            "trailing_win":    "📈",
-            "trailing_loss":   "📉",
-            "breakeven":       "⚖️",
-            "force_close_win": "⚠️",
-            "force_close_loss":"⚠️",
-            "time_exit_soft":  "⏱",
-            "time_exit_hard":  "⏰",
-        }.get(reason, "•")
+        pnl = t.get("pnl_pct", 0)
+        if reason == "time_exit_soft":
+            emoji = "⏱✅" if pnl > 0 else "⏱🔴"
+        elif reason == "time_exit_hard":
+            emoji = "⏰✅" if pnl > 0 else "⏰🔴"
+        else:
+            emoji = {
+                "tp":              "✅",
+                "sl":              "🔴",
+                "trailing_win":    "📈",
+                "trailing_loss":   "📉",
+                "breakeven":       "⚖️",
+                "force_close_win": "⚠️",
+                "force_close_loss":"⚠️",
+            }.get(reason, "•")
         lines.append(
             f"{emoji} {t['symbol']} {t.get('direction','').upper()} — {reason.replace('_', ' ')}"
         )
@@ -224,7 +228,9 @@ def _format_report(trades, titolo, show_equity=False):
     time_hard     = len([t for t in trades if t.get("exit_reason") == "time_exit_hard"])
     total         = len(trades)
 
-    wins    = tp + trailing_win + fc_win
+    time_soft_win = len([t for t in trades if t.get("exit_reason") == "time_exit_soft" and t.get("pnl_pct", 0) > 0])
+    time_hard_win = len([t for t in trades if t.get("exit_reason") == "time_exit_hard" and t.get("pnl_pct", 0) > 0])
+    wins    = tp + trailing_win + fc_win + time_soft_win + time_hard_win
     winrate = round(wins / total * 100, 1) if total else 0
 
     pnl_total = round(sum(t.get("pnl_pct", 0) for t in trades), 2)

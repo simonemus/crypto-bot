@@ -756,7 +756,8 @@ def get_stats_by_atr() -> dict:
             SELECT
                 symbol,
                 atr_pct,
-                exit_reason
+                exit_reason,
+                pnl_pct
             FROM trades
             WHERE status = 'closed'
             AND atr_pct IS NOT NULL
@@ -766,6 +767,7 @@ def get_stats_by_atr() -> dict:
         release_db(conn)
 
         wins_set = {"tp", "trailing_win", "force_close_win"}
+        time_exits = {"time_exit_soft", "time_exit_hard"}
 
         result = {}
         # Breakpoint fissi basati sui pulsanti /setatr
@@ -789,6 +791,7 @@ def get_stats_by_atr() -> dict:
             symbol = row[0]
             atr_pct = float(row[1])
             exit_reason = row[2]
+            pnl_pct = float(row[3]) if row[3] else 0.0
             if symbol not in result:
                 continue
             fasce = result[symbol]
@@ -798,13 +801,13 @@ def get_stats_by_atr() -> dict:
                     # Ultima fascia: includi anche il valore esatto del max
                     if fascia["min"] <= atr_pct <= fascia["max"]:
                         fascia["total"] += 1
-                        if exit_reason in wins_set:
+                        if exit_reason in wins_set or (exit_reason in time_exits and pnl_pct > 0):
                             fascia["wins"] += 1
                         break
                 else:
                     if fascia["min"] <= atr_pct < fascia["max"]:
                         fascia["total"] += 1
-                        if exit_reason in wins_set:
+                        if exit_reason in wins_set or (exit_reason in time_exits and pnl_pct > 0):
                             fascia["wins"] += 1
                         break
 
