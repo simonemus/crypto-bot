@@ -542,6 +542,8 @@ def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float, atr: fl
     try:
         if symbol in breakout_seen:
             return
+        if symbol in open_trades:
+            return
 
         if symbol not in proximity_alerted:
             proximity_alerted[symbol] = {"pdh": None, "pdl": None}
@@ -587,9 +589,6 @@ def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float, atr: fl
                             f"ATR%: {round(atr_pct_raw, 3)}% {atr_emoji}"
                         )
                     break
-                else:
-                    if proximity_alerted[symbol]["pdh"] == soglia:
-                        proximity_alerted[symbol]["pdh"] = None
         else:
             proximity_alerted[symbol]["pdh"] = None
 
@@ -609,9 +608,6 @@ def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float, atr: fl
                             f"ATR%: {round(atr_pct_raw, 3)}% {atr_emoji}"
                         )
                     break
-                else:
-                    if proximity_alerted[symbol]["pdl"] == soglia:
-                        proximity_alerted[symbol]["pdl"] = None
         else:
             proximity_alerted[symbol]["pdl"] = None
 
