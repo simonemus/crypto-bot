@@ -544,6 +544,8 @@ def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float, atr: fl
             return
         if symbol in open_trades:
             return
+        if get_daily_trade_count(symbol) >= config.MAX_TRADES_PER_DAY_PER_ASSET:
+            return
 
         if symbol not in proximity_alerted:
             proximity_alerted[symbol] = {"pdh": None, "pdl": None}
