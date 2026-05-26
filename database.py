@@ -768,9 +768,6 @@ def get_stats_by_atr() -> dict:
         wins_set = {"tp", "trailing_win", "force_close_win"}
 
         result = {}
-        logger.info(f"get_stats_by_atr — rows dal DB: {len(rows)}")
-        for r in rows:
-            logger.info(f"  row: symbol={r[0]} atr_pct={r[1]} exit_reason={r[2]}")
         # Breakpoint fissi basati sui pulsanti /setatr
         all_bounds = {
             "BTC/USDT": [0.10, 0.15, 0.20, 0.50, 0.75, 1.00],
