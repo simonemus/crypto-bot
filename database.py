@@ -112,7 +112,7 @@ def init_db():
             VALUES ('callback_SOL/USDT', '1.0', now())
             ON CONFLICT (key) DO NOTHING;
             INSERT INTO config (key, value, updated_at)
-            VALUES ('atr_min_BTC/USDT', '0.15', now())
+            VALUES ('atr_min_BTC/USDT', '0.10', now())
             ON CONFLICT (key) DO NOTHING;
             INSERT INTO config (key, value, updated_at)
             VALUES ('atr_max_BTC/USDT', '0.75', now())

@@ -59,7 +59,7 @@ TRAILING_CALLBACK = {
 }
 
 ATR_FILTERS = {
-    "BTC/USDT": {"min": 0.15, "ideal_min": 0.25, "ideal_max": 0.55, "max": 0.75},
+    "BTC/USDT": {"min": 0.10, "ideal_min": 0.25, "ideal_max": 0.55, "max": 0.75},
     "ETH/USDT": {"min": 0.20, "ideal_min": 0.30, "ideal_max": 0.65, "max": 0.90},
     "SOL/USDT": {"min": 0.30, "ideal_min": 0.45, "ideal_max": 0.90, "max": 1.20},
 }
