@@ -228,8 +228,10 @@ def _format_report(trades, titolo, show_equity=False):
     time_hard     = len([t for t in trades if t.get("exit_reason") == "time_exit_hard"])
     total         = len(trades)
 
-    time_soft_win = len([t for t in trades if t.get("exit_reason") == "time_exit_soft" and t.get("pnl_pct", 0) > 0])
-    time_hard_win = len([t for t in trades if t.get("exit_reason") == "time_exit_hard" and t.get("pnl_pct", 0) > 0])
+    time_soft_win  = len([t for t in trades if t.get("exit_reason") == "time_exit_soft" and t.get("pnl_pct", 0) > 0])
+    time_hard_win  = len([t for t in trades if t.get("exit_reason") == "time_exit_hard" and t.get("pnl_pct", 0) > 0])
+    time_soft_loss = time_soft - time_soft_win
+    time_hard_loss = time_hard - time_hard_win
     wins    = tp + trailing_win + fc_win + time_soft_win + time_hard_win
     winrate = round(wins / total * 100, 1) if total else 0
 
@@ -245,7 +247,8 @@ def _format_report(trades, titolo, show_equity=False):
         f"📈 Trailing Win: {trailing_win} | 📉 Trailing Loss: {trailing_loss}",
         f"⚖️ Breakeven: {breakeven}",
         f"⚠️ Force Win: {fc_win} | Force Loss: {fc_loss}",
-        f"⏱ Time Soft: {time_soft} | ⏰ Time Hard: {time_hard}",
+        f"⏱ Time Soft Win: {time_soft_win} | ⏱ Time Soft Loss: {time_soft_loss}",
+        f"⏰ Time Hard Win: {time_hard_win} | ⏰ Time Hard Loss: {time_hard_loss}",
         f"Win rate: {winrate}%",
         f"PnL medio: {sign_medio}{pnl_medio}%",
         f"PnL totale: {sign_total}{pnl_total}%",
