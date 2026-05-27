@@ -124,6 +124,13 @@ def scan_symbol(exchange, symbol: str) -> None:
         logger.info(f"{symbol} — posizione già aperta su Binance, skip")
         return
 
+    # Nessun nuovo trade dopo le 18:30 UTC (20:30 Italia)
+    # Garantisce almeno 2h30 prima del force close alle 21:00 UTC
+    _now = now_utc()
+    if _now.hour > 18 or (_now.hour == 18 and _now.minute >= 30):
+        logger.info(f"{symbol} — oltre l'ora di last entry (18:30 UTC), skip")
+        return   
+
     # Limite trade/giorno
     daily_count = get_daily_trade_count(symbol)
     if daily_count >= config.MAX_TRADES_PER_DAY_PER_ASSET:
