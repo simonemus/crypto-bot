@@ -747,6 +747,7 @@ def run_bot() -> None:
     last_pnl_notify = None
     heartbeat_sent_today = False
     weekly_report_sent = False
+    session_close_sent_today = False
 
     while BOT_RUNNING:
         try:
@@ -761,6 +762,7 @@ def run_bot() -> None:
                 force_closed_today = False
                 heartbeat_sent_today = False
                 weekly_report_sent = False
+                session_close_sent_today = False
                 daily_loss_blocked = False
 
                 decay_cooldown = {}
@@ -791,6 +793,20 @@ def run_bot() -> None:
             if now.weekday() == 0 and now.hour == 6 and now.minute == 50 and not weekly_report_sent:
                 send_weekly_report(exchange)
                 weekly_report_sent = True
+
+            # Notifica chiusura sessione — 20:00 UTC (22:00 Italia)
+            if now.hour == config.SESSION_END_HOUR and now.minute == 0 and not session_close_sent_today:
+                is_weekday = now.weekday() < 5
+                weekend_filter = str(get_config_param("weekend_filter") or config.WEEKEND_FILTER).lower() == "true"
+                if is_weekday or not weekend_filter:
+                    from datetime import datetime, timezone, timedelta
+                    now_it = datetime.now(timezone.utc) + timedelta(hours=2)
+                    send_message(
+                        f"🔴 Sessione chiusa — {now_it.strftime('%d/%m/%Y')}\n"
+                        f"Ora: {now_it.strftime('%H:%M')}\n"
+                        f"Prossima sessione: domani alle 09:00"
+                    )
+                session_close_sent_today = True    
                 
             # Report serale
             if is_report_time() and not report_sent_today:
