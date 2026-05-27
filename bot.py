@@ -242,6 +242,11 @@ def scan_symbol(exchange, symbol: str) -> None:
                 order = {"id": None}
             else:
                 logger.info(f"{symbol} — posizione non aperta su Binance, skip")
+                del breakout_seen[symbol]
+                clear_breakout(symbol)
+                decay_cooldown[symbol] = now_utc()
+                save_decay_cooldown(symbol)
+                send_message(f"⚠️ Ordine fallito — {symbol}\nErrore: {str(order_err)[:100]}\nCooldown attivo per 60 minuti.")
                 return
 
         # --- Calcola activation price trailing ---
