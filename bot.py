@@ -588,44 +588,41 @@ def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float, atr: fl
         }.get(atr_class)
 
         if atr_emoji is None:
-            proximity_alerted[symbol] = {"pdh": None, "pdl": None}
             return
 
         # --- Breakout LONG ---
         if 0 < dist_to_long:
-            for soglia in PROXIMITY_SOGLIE:
-                soglia_dec = soglia / 100
-                if dist_to_long < soglia_dec:
-                    last = proximity_alerted[symbol]["pdh"]
-                    if last is None or soglia < last:
-                        proximity_alerted[symbol]["pdh"] = soglia
-                        send_message(
-                            f"⚡ {symbol} si avvicina al Breakout LONG\n"
-                            f"Live: {price:,.2f} — {now_str}\n"
-                            f"Breakout da: {breakout_long:,.2f}\n"
-                            f"Manca: {round(dist_to_long * 100, 2)}%\n"
-                            f"ATR%: {round(atr_pct_raw, 3)}% {atr_emoji}"
-                        )
-                    break
+            dist_long_pct = dist_to_long * 100
+            soglia = next((s for s in reversed(PROXIMITY_SOGLIE) if dist_long_pct < s), None)
+            if soglia is not None:
+                last = proximity_alerted[symbol]["pdh"]
+                if last is None or soglia < last:
+                    proximity_alerted[symbol]["pdh"] = soglia
+                    send_message(
+                        f"⚡ {symbol} si avvicina al Breakout LONG\n"
+                        f"Live: {price:,.2f} — {now_str}\n"
+                        f"Breakout da: {breakout_long:,.2f}\n"
+                        f"Manca: {round(dist_to_long * 100, 2)}%\n"
+                        f"ATR%: {round(atr_pct_raw, 3)}% {atr_emoji}"
+                    )
         else:
             proximity_alerted[symbol]["pdh"] = None
 
         # --- Breakout SHORT ---
         if 0 < dist_to_short:
-            for soglia in PROXIMITY_SOGLIE:
-                soglia_dec = soglia / 100
-                if dist_to_short < soglia_dec:
-                    last = proximity_alerted[symbol]["pdl"]
-                    if last is None or soglia < last:
-                        proximity_alerted[symbol]["pdl"] = soglia
-                        send_message(
-                            f"⚡ {symbol} si avvicina al Breakout SHORT\n"
-                            f"Live: {price:,.2f} — {now_str}\n"
-                            f"Breakout da: {breakout_short:,.2f}\n"
-                            f"Manca: {round(dist_to_short * 100, 2)}%\n"
-                            f"ATR%: {round(atr_pct_raw, 3)}% {atr_emoji}"
-                        )
-                    break
+            dist_short_pct = dist_to_short * 100
+            soglia = next((s for s in reversed(PROXIMITY_SOGLIE) if dist_short_pct < s), None)
+            if soglia is not None:
+                last = proximity_alerted[symbol]["pdl"]
+                if last is None or soglia < last:
+                    proximity_alerted[symbol]["pdl"] = soglia
+                    send_message(
+                        f"⚡ {symbol} si avvicina al Breakout SHORT\n"
+                        f"Live: {price:,.2f} — {now_str}\n"
+                        f"Breakout da: {breakout_short:,.2f}\n"
+                        f"Manca: {round(dist_to_short * 100, 2)}%\n"
+                        f"ATR%: {round(atr_pct_raw, 3)}% {atr_emoji}"
+                    )
         else:
             proximity_alerted[symbol]["pdl"] = None
 
