@@ -558,6 +558,10 @@ def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float, atr: fl
             return
         if get_daily_trade_count(symbol) >= config.MAX_TRADES_PER_DAY_PER_ASSET:
             return
+        if symbol in decay_cooldown:
+            elapsed = (now_utc() - decay_cooldown[symbol]).total_seconds()
+            if elapsed < 3600:
+                return
 
         if symbol not in proximity_alerted:
             proximity_alerted[symbol] = {"pdh": None, "pdl": None}
