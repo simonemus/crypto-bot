@@ -563,6 +563,12 @@ def check_proximity_alert(exchange, symbol: str, pdh: float, pdl: float, atr: fl
             if elapsed < 3600:
                 return
 
+        # Nessuna notifica proximity dopo le 18:30 UTC (20:30 Italia)
+        # I nuovi trade sono bloccati, le notifiche sono rumore inutile
+        _now = now_utc()
+        if _now.hour > 18 or (_now.hour == 18 and _now.minute >= 30):
+            return        
+
         if symbol not in proximity_alerted:
             proximity_alerted[symbol] = {"pdh": None, "pdl": None}
 
