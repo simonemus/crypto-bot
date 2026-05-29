@@ -69,6 +69,13 @@ def get_exchange():
         logger.info("Connesso a Binance FUTURES LIVE")
 
     exchange.load_markets()
+    try:
+        account_info = exchange.fapiPrivateV2GetAccount()
+        logger.info(f"canTrade: {account_info.get('canTrade')}")
+        logger.info(f"canDeposit: {account_info.get('canDeposit')}")
+        logger.info(f"canWithdraw: {account_info.get('canWithdraw')}")
+    except Exception as e:
+        logger.error(f"Errore check account: {e}")
     return exchange
 
 def get_exchange_with_retry(max_retries: int = 5) -> ccxt.binanceusdm:
