@@ -69,44 +69,6 @@ def get_exchange():
         logger.info("Connesso a Binance FUTURES LIVE")
 
     exchange.load_markets()
-
-    # TEST 1 — account trade permission
-    try:
-        account = exchange.fapiPrivateV2GetAccount()
-        logger.info("FAPI ACCOUNT OK — totalWalletBalance=%s", account.get("totalWalletBalance"))
-        logger.info("canTrade=%s canWithdraw=%s canDeposit=%s",
-                    account.get("canTrade"),
-                    account.get("canWithdraw"),
-                    account.get("canDeposit"))
-    except Exception as e:
-        logger.error("FAPI ACCOUNT ERROR: %s", e)
-
-    # TEST 2 — ordine test raw (non apre nulla, valida solo i parametri)
-    try:
-        result = exchange.fapiPrivatePostOrderTest({
-            "symbol": "ETHUSDT",
-            "side": "BUY",
-            "type": "MARKET",
-            "quantity": "0.01",
-            "timestamp": exchange.milliseconds(),
-        })
-        logger.info("ORDER TEST OK: %s", result)
-    except Exception as e:
-        logger.error("ORDER TEST ERROR: %s", e)
-
-    # TEST 3 — ordine market raw reale (apre posizione in demo!)
-    try:
-        result = exchange.fapiPrivatePostOrder({
-            "symbol": "ETHUSDT",
-            "side": "BUY",
-            "type": "MARKET",
-            "quantity": "0.01",
-            "timestamp": exchange.milliseconds(),
-        })
-        logger.info("RAW MARKET ORDER OK: %s", result)
-    except Exception as e:
-        logger.error("RAW MARKET ORDER ERROR: %s", e)
-
     return exchange
 
 def get_exchange_with_retry(max_retries: int = 5) -> ccxt.binanceusdm:
