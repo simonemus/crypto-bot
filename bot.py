@@ -20,6 +20,7 @@ from binance_api import (
     get_balance_usdt, get_ticker_price,
     check_signal_decay, set_leverage_all,
     has_open_position, get_exchange_with_retry,
+    check_binance_trading_ready,
 )
 from telegram_bot import send_message, send_error
 from database import (
@@ -253,7 +254,17 @@ def scan_symbol(exchange, symbol: str) -> None:
                 clear_breakout(symbol)
                 decay_cooldown[symbol] = now_utc()
                 save_decay_cooldown(symbol)
-                send_message(f"⚠️ Ordine fallito — {symbol}\nErrore: {str(order_err)[:100]}\nCooldown attivo per 60 minuti.")
+                err_str = str(order_err)
+                if "-1109" in err_str:
+                    send_error(
+                        f"🚨 *Ordine fallito — {symbol}*\n"
+                        f"Errore: `-1109 Invalid account`\n\n"
+                        f"Probabile API key scaduta/invalida lato trading Demo.\n"
+                        f"Vai su demo-fapi.binance.com → API Management → rigenera le API key e aggiorna Railway.\n\n"
+                        f"Cooldown attivo per 60 minuti."
+                    )
+                else:
+                    send_message(f"⚠️ Ordine fallito — {symbol}\nErrore: {err_str[:100]}\nCooldown attivo per 60 minuti.")
                 return
 
         # --- Calcola activation price trailing ---
@@ -754,6 +765,17 @@ def run_bot() -> None:
 
     exchange = get_exchange_with_retry()
     set_leverage_all(exchange, config.SYMBOLS, leverage=2)
+
+    # Check API key valide per trading reale
+    trading_ok, trading_msg = check_binance_trading_ready(exchange)
+    if not trading_ok:
+        send_error(
+            f"🚨 *Binance Trading Check FAILED*\n"
+            f"Errore: `{trading_msg[:200]}`\n\n"
+            f"Possibile API key scaduta/invalida.\n"
+            f"Vai su demo-fapi.binance.com → API Management → rigenera le API key e aggiorna Railway."
+        )
+
     algo_methods = [m for m in dir(exchange) if "algo" in m.lower()]
     logger.info(f"CCXT Algo methods: {algo_methods}")
     report_sent_today = False

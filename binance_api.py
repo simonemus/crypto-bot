@@ -69,7 +69,41 @@ def get_exchange():
         logger.info("Connesso a Binance FUTURES LIVE")
 
     exchange.load_markets()
+    api_key_used = exchange.apiKey or ""
+    if len(api_key_used) >= 8:
+        logger.info(f"Binance API Key in uso: {api_key_used[:8]}...")
+    else:
+        logger.warning("Binance API Key vuota o troppo corta!")
     return exchange
+
+def check_binance_trading_ready(exchange) -> tuple[bool, str]:
+    """
+    Verifica all'avvio che le API key siano valide per il trading reale.
+    Returns: (success, message)
+    """
+    try:
+        account = exchange.fapiPrivateV2GetAccount()
+        can_trade = account.get("canTrade")
+        balance = account.get("totalWalletBalance")
+        logger.info(f"FAPI ACCOUNT OK — canTrade={can_trade} balance={balance}")
+
+        if not can_trade:
+            return False, f"canTrade=False — API key non abilitata al trading"
+
+        # Test ordine (non apre nulla)
+        exchange.fapiPrivatePostOrderTest({
+            "symbol": "ETHUSDT",
+            "side": "BUY",
+            "type": "MARKET",
+            "quantity": "0.01",
+            "timestamp": exchange.milliseconds(),
+        })
+        logger.info("FAPI ORDER TEST OK — API key valida per trading")
+        return True, "OK"
+
+    except Exception as e:
+        logger.error(f"BINANCE TRADING CHECK FAILED: {e}")
+        return False, str(e)    
 
 def get_exchange_with_retry(max_retries: int = 5) -> ccxt.binanceusdm:
     """
