@@ -87,7 +87,6 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     _bot_thread = threading.Thread(target=run_bot, daemon=True)
     _bot_thread.start()
-    await update.message.reply_text("✅ *Bot avviato con successo!*", parse_mode=ParseMode.MARKDOWN)
 
 
 async def cmd_stop(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
