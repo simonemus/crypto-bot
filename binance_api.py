@@ -69,6 +69,20 @@ def get_exchange():
         logger.info("Connesso a Binance FUTURES LIVE")
 
     exchange.load_markets()
+
+    # TEST ordine reale minimo con nuove API key
+    try:
+        result = exchange.fapiPrivatePostOrder({
+            "symbol": "ETHUSDT",
+            "side": "BUY",
+            "type": "MARKET",
+            "quantity": "0.01",
+            "timestamp": exchange.milliseconds(),
+        })
+        logger.info("RAW MARKET ORDER OK: %s", result)
+    except Exception as e:
+        logger.error("RAW MARKET ORDER ERROR: %s", e)
+
     return exchange
 
 def get_exchange_with_retry(max_retries: int = 5) -> ccxt.binanceusdm:
