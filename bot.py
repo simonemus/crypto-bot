@@ -218,6 +218,12 @@ def scan_symbol(exchange, symbol: str) -> None:
         # Filtro ATR% — verifica volatilità min/max
         atr_pct = float(df_15.iloc[-2]["atr_pct"])
         atr_class = classify_atr(symbol, atr_pct)
+        atr_emoji = {
+            "IDEAL_VOLATILITY":        "🟢",
+            "VALID_BUT_NOT_IDEAL":     "🟡",
+            "NO_TRADE_LOW_VOLATILITY": "🔴-",
+            "NO_TRADE_HIGH_VOLATILITY":"🔴+",
+        }.get(atr_class, "⚪")
         logger.info(f"{symbol} — ATR%: {atr_pct:.3f}% — {atr_class}")
         if atr_class == "NO_TRADE_LOW_VOLATILITY":
             logger.info(f"{symbol} — ATR troppo basso, skip")
