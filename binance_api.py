@@ -95,7 +95,7 @@ def check_binance_trading_ready(exchange) -> tuple[bool, str]:
             "symbol": "ETHUSDT",
             "side": "BUY",
             "type": "MARKET",
-            "quantity": "0.01",
+            "quantity": "0.02",
             "timestamp": exchange.milliseconds(),
         })
         logger.info("FAPI ORDER TEST OK — API key valida per trading")
